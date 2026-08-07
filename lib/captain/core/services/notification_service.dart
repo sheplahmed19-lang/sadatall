@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:sadat_delivery_merged/captain/main_navigation.dart'
 import 'package:sadat_delivery_merged/captain/features/chat/captain_support_chat_screen.dart';
 import '../errors/app_exceptions.dart';
 import '../network/api_client.dart';
+import 'order_alert_service.dart';
 
 const Set<String> _kAvailableOrderTypes = {
   'NEW_ORDER',
@@ -111,6 +113,15 @@ class NotificationService {
         },
       );
 
+      // New-order ring alert: registers the accept/decline/timeout listener.
+      OrderAlertService.initialize();
+      // Android 14+ requires this runtime grant separately from the
+      // manifest permission, or the full-screen alert silently degrades
+      // to a normal notification.
+      try {
+        await FlutterCallkitIncoming.requestFullIntentPermission();
+      } catch (_) {}
+
       // Configure message handlers
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
       FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
@@ -175,6 +186,21 @@ class NotificationService {
       ('Title: ${message.notification?.title}');
       ('Body: ${message.notification?.body}');
       ('Data: ${message.data}');
+    }
+
+    // New-order ring alert — data-only messages, handled entirely via
+    // CallKit's own full-screen UI instead of a local notification.
+    final alertType = message.data['type'];
+    if (alertType == 'NEW_ORDER_ALERT') {
+      await OrderAlertService.showIncomingOrderAlert(message.data);
+      return;
+    }
+    if (alertType == 'ORDER_TAKEN') {
+      final orderId = message.data['orderId'];
+      if (orderId != null) {
+        await OrderAlertService.dismissIncomingOrderAlert(orderId);
+      }
+      return;
     }
 
     final notification = message.notification;
@@ -306,5 +332,22 @@ class NotificationService {
   Future<void> cancelTokenListener() async {
     await _tokenSubscription?.cancel();
     _tokenSubscription = null;
+  }
+}
+
+/// Handles a captain-relevant order-alert push from the FCM background
+/// isolate (app backgrounded or fully killed). Safe to call for every
+/// background message regardless of app mode — non-captain messages just
+/// won't match either type below.
+@pragma('vm:entry-point')
+Future<void> handleCaptainBackgroundOrderAlert(RemoteMessage message) async {
+  final type = message.data['type'];
+  if (type == 'NEW_ORDER_ALERT') {
+    await OrderAlertService.showIncomingOrderAlert(message.data);
+  } else if (type == 'ORDER_TAKEN') {
+    final orderId = message.data['orderId'];
+    if (orderId != null) {
+      await OrderAlertService.dismissIncomingOrderAlert(orderId);
+    }
   }
 }

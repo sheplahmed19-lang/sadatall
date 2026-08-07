@@ -47,6 +47,13 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>نحتاج الميكروفون لتسجيل الرسائل الصوتية</string>
 
+	<!-- Captain incoming-order CallKit alert: VoIP push wakes the app to
+	     show the ring screen even when killed/backgrounded -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>remote-notification</string>
+	</array>
 
 <key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
