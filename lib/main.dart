@@ -176,6 +176,7 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  await captain_notif.handleCaptainBackgroundOrderAlert(message);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -36,6 +36,7 @@ class ApiConfig {
   static const String ordersAvailable = '/orders/available';
   static const String ordersCaptain = '/orders/captain/orders';
   static const String orderAccept = '/orders/{id}/captain-approve';
+  static const String orderReject = '/orders/{id}/captain-reject';
   static const String orderDelivered = '/orders/{id}/delivered';
   static const String orderArrived = '/orders/{id}/arrived';
 

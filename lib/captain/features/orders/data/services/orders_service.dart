@@ -76,6 +76,23 @@ class OrdersService {
     }
   }
 
+  /// Dismisses this order's incoming ring alert for the current captain —
+  /// either an explicit decline or a local countdown timeout. The order
+  /// stays available to every other captain; this just stops it being
+  /// re-offered to this one.
+  Future<void> rejectOrder(String orderId, {String reason = 'REJECTED'}) async {
+    final endpoint = ApiConfig.orderReject.replaceAll('{id}', orderId);
+
+    final response = await _apiClient.put(
+      endpoint,
+      body: {'reason': reason},
+    );
+
+    if (!response.success) {
+      throw ApiException(message: response.error ?? 'Failed to dismiss order');
+    }
+  }
+
   Future<OrderModel> markDelivered(String orderId) async {
     final endpoint = ApiConfig.orderDelivered.replaceAll('{id}', orderId);
 
