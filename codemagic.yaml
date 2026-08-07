@@ -9,17 +9,62 @@ workflows:
 
     scripts:
       - name: Get Flutter dependencies
-        script: flutter pub get
+        script: |
+          # This project uses CocoaPods only (no Package.swift, no
+          # XCRemoteSwiftPackageReference). Flutter's experimental SPM
+          # integration mis-parses Runner.xcscheme and aborts the build, so
+          # turn it off before any `flutter build` runs.
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
 
       - name: Flutter config-only (generates xcconfig & plugin files, skips pod install)
         script: |
-          flutter build ios --config-only --no-codesign 2>/dev/null || true
+          # Drop any stale build/ dir: a previous simulator-configured build
+          # leaves Release-iphonesimulator artifacts that make the device build
+          # resolve against the simulator SDK.
+          rm -rf build ios/.symlinks ios/Flutter/ephemeral
+          # No `|| true` here: if config generation fails the xcconfigs are left
+          # half-written and the real error only surfaces much later.
+          flutter build ios --config-only --release --no-codesign
 
       - name: Clean and reinstall pods
         script: |
+          set -e
           cd ios
           rm -rf Pods Podfile.lock
           pod install --repo-update
+          # `xcodebuild -list` reports the Runner scheme even when the pod
+          # sandbox is absent or half-written, so it cannot be trusted as a
+          # gate. Assert the generated files exist here instead: this is the
+          # true origin of "Supported platforms ... is empty" /
+          # "Scheme Runner is not currently configured for the build action",
+          # which otherwise only surfaces at the first -showBuildSettings.
+          test -f Pods/Pods.xcodeproj/project.pbxproj \
+            || { echo ">>> FAIL: pod install produced no Pods.xcodeproj"; exit 1; }
+          test -f "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig" \
+            || { echo ">>> FAIL: Pods-Runner release xcconfig missing"; exit 1; }
+          # The committed workspace referenced only Runner.xcodeproj. Without a
+          # Pods.xcodeproj FileRef the Runner target resolves no platform and
+          # xcodebuild reports "Supported platforms ... is empty" /
+          # "Scheme Runner is not currently configured for the build action".
+          WS=Runner.xcworkspace/contents.xcworkspacedata
+          echo "=== workspace after pod install ==="
+          cat "$WS"
+          if ! grep -q "Pods.xcodeproj" "$WS"; then
+            echo ">>> Pods.xcodeproj FileRef missing - restoring it"
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<Workspace' \
+              '   version = "1.0">' \
+              '   <FileRef' \
+              '      location = "group:Runner.xcodeproj">' \
+              '   </FileRef>' \
+              '   <FileRef' \
+              '      location = "group:Pods/Pods.xcodeproj">' \
+              '   </FileRef>' \
+              '</Workspace>' > "$WS"
+            cat "$WS"
+          fi
 
       - name: Verify -GCC_WARN_INHIBIT_ALL_WARNINGS was removed by Podfile hook
         script: |
@@ -44,21 +89,79 @@ workflows:
           fi
           echo "=== Done ==="
 
-      - name: Build iOS Release (xcodebuild direct, fresh DerivedData)
+      - name: Verify xcconfig includes Pods (diagnoses "scheme not configured")
         script: |
-          xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath /tmp/derived_data \
-            CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            2>&1 | tee /tmp/xbuild.log
-          STATUS=${PIPESTATUS[0]}
+          echo "=== ios/Flutter/Release.xcconfig ==="
+          cat ios/Flutter/Release.xcconfig
+          if ! grep -q "Pods-Runner.release.xcconfig" ios/Flutter/Release.xcconfig; then
+            echo ">>> Pods include MISSING - restoring it"
+            printf '#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"\n#include "Generated.xcconfig"\n' > ios/Flutter/Release.xcconfig
+            cat ios/Flutter/Release.xcconfig
+          fi
+          echo "=== schemes xcodebuild can see ==="
+          xcodebuild -workspace ios/Runner.xcworkspace -list
+
+      - name: Verify the scheme still points at a real target
+        script: |
+          # A find/replace once rewrote BlueprintIdentifier/BlueprintName to
+          # BlueIdentifier/BlueName in Runner.xcscheme. Xcode ignores unknown
+          # attributes silently, so the scheme still *listed* but referenced no
+          # target: "Supported platforms ... is empty" / "Scheme Runner is not
+          # currently configured for the build action". Catch that here, where
+          # the message names the cause, instead of 3 steps later.
+          SCHEME=ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+          if grep -qE '\bBlueIdentifier\b|\bBlueName\b' "$SCHEME"; then
+            echo ">>> FAIL: $SCHEME uses BlueIdentifier/BlueName."
+            echo ">>> They must be BlueprintIdentifier/BlueprintName."
+            exit 1
+          fi
+          grep -q "BlueprintIdentifier" "$SCHEME" \
+            || { echo ">>> FAIL: no BlueprintIdentifier in $SCHEME"; exit 1; }
+          echo "OK: scheme references a target by BlueprintIdentifier"
+
+      - name: Confirm the build resolves the device SDK, not the simulator
+        script: |
+          # 2>&1, not 2>/dev/null: discarding stderr hides the actual xcodebuild
+          # error and leaves only an empty SDK_NAME to explain the failure.
+          SDK=$(xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+                  -configuration Release -destination 'generic/platform=iOS' \
+                  -showBuildSettings 2>&1 | grep -m1 " SDK_NAME" || true)
+          echo "resolved:${SDK}"
+          # Require a positive iphoneos match: an empty SDK means
+          # -showBuildSettings itself failed, which must not pass silently.
+          case "$SDK" in
+            *iphonesimulator*)
+              echo ">>> FAIL: resolving the simulator SDK for a device build"
+              exit 1 ;;
+            *iphoneos*)
+              echo "OK: device SDK" ;;
+            *)
+              echo ">>> FAIL: could not read SDK_NAME (showBuildSettings failed)"
+              xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+                -configuration Release -destination 'generic/platform=iOS' \
+                -showBuildSettings 2>&1 | tail -30
+              exit 1 ;;
+          esac
+
+      - name: Build iOS Release
+        script: |
+          # No --verbose: it emits ~10k lines of build settings per target and
+          # buries the actual diagnostic. The grep below surfaces it instead.
+          set -o pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee /tmp/xbuild.log
+          STATUS=$?
           if [ $STATUS -ne 0 ]; then
             echo "=== error lines ==="
-            grep -n "error:" /tmp/xbuild.log | head -20
+            grep -nE "error:|fatal error|ld: |The following build commands failed|Undefined symbol" /tmp/xbuild.log | head -40
+            echo ""
+            echo "=== real diagnostic via xcodebuild ==="
+            xcodebuild \
+              -workspace ios/Runner.xcworkspace \
+              -scheme Runner \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              CODE_SIGNING_ALLOWED=NO \
+              build 2>&1 | grep -E "error:|fatal error|The following build commands failed|Undefined symbol" | head -40
           fi
           exit $STATUS
 
@@ -68,7 +171,7 @@ workflows:
 
   # ---------------------------------------------------------------------------
   ios-release-workflow:
-    name: iOS Release Build
+    name: iOS Release Archive
     max_build_duration: 60
     environment:
       flutter: stable
