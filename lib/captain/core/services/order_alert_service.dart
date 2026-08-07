@@ -100,7 +100,10 @@ class OrderAlertService {
         isCustomNotification: true,
         isShowLogo: false,
         isFullScreen: true,
-        ringtonePath: 'order_ping',
+        // No ringtonePath — falls back to the device's own default ringtone
+        // (RingtoneManager.getActualDefaultRingtoneUri), a proper looping
+        // melody through the ring stream. order_ping.mp3 is a ~2s "ping"
+        // built for chat notifications, not a phone-call-style ring.
         backgroundColor: '#0955fa',
         actionColor: '#4CAF50',
         incomingCallNotificationChannelName: 'تنبيه طلب جديد',
