@@ -9,11 +9,20 @@ class AppUtils {
   }
 
   static String formatDateTime(DateTime dateTime) {
-    return DateFormat('yyyy-MM-dd HH:mm').format(dateTime.toLocal());
+    final local = dateTime.toLocal();
+    return '${DateFormat('yyyy-MM-dd').format(local)} ${_formatTime12Hour(local)}';
   }
 
   static String formatTime(DateTime time) {
-    return DateFormat('HH:mm').format(time.toLocal());
+    return _formatTime12Hour(time.toLocal());
+  }
+
+  static String _formatTime12Hour(DateTime time) {
+    final hour12 = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final amPm = time.hour < 12 ? 'صباحاً' : 'مساءً';
+    final hh = hour12.toString().padLeft(2, '0');
+    final mm = time.minute.toString().padLeft(2, '0');
+    return '$hh:$mm $amPm';
   }
 
   static String formatPrice(double price) {

@@ -90,7 +90,7 @@ class TimeUtils {
 
     // Get 12-hour format
     final hour12 = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
-    final amPm = dateTime.hour < 12 ? 'AM' : 'PM';
+    final amPm = dateTime.hour < 12 ? 'صباحاً' : 'مساءً';
 
     // Replace format placeholders with actual values
     formatted = formatted.replaceAll('yyyy', dateTime.year.toString().padLeft(4, '0'));

@@ -435,6 +435,6 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return TimeUtils.formatCairoDateTimeArabic(date, pattern: 'yyyy/MM/dd HH:mm');
+    return TimeUtils.formatCairoDateTimeArabic(date, pattern: 'yyyy/MM/dd hh:mm a');
   }
 }

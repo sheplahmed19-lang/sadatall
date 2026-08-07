@@ -70,7 +70,7 @@ class TimeUtils {
     final hour12 = dateTime.hour > 12 
         ? dateTime.hour - 12 
         : (dateTime.hour == 0 ? 12 : dateTime.hour);
-    final amPm = dateTime.hour >= 12 ? 'PM' : 'AM';
+    final amPm = dateTime.hour >= 12 ? 'مساءً' : 'صباحاً';
     
     formatted =
         formatted.replaceAll('hh', hour12.toString().padLeft(2, '0'));
