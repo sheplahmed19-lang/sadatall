@@ -379,6 +379,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Picks the categories shown under "في بالك إيه دلوقتي؟".
+  /// one shorter.
   Widget _buildQuickPicks() {
     if (_categories.isEmpty) return const SizedBox.shrink();
 
@@ -402,7 +404,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(right: 16),
               itemCount: _categories.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
-              itemBuilder: (context, index) => _buildQuickPickItem(_categories[index]),
+              itemBuilder: (context, index) =>
+                  _buildQuickPickItem(_categories[index]),
             ),
           ),
         ],
@@ -447,7 +450,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return CircleAvatar(
       radius: 28,
       backgroundColor: AppTheme.backgroundColor,
-      child: Icon(Icons.category_outlined, color: AppTheme.primaryColor, size: 28),
+      child: Icon(
+        Icons.category_outlined,
+        color: AppTheme.primaryColor,
+        size: 28,
+      ),
     );
   }
 

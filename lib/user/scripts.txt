@@ -1,5 +1,0 @@
-if (widget.isCustomOrder) {
-        vendorId = '-1';
-      } else {
-        vendorId = widget.vendor!.id;
-      }

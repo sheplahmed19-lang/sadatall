@@ -40,10 +40,16 @@ class AuthProvider with ChangeNotifier {
         // screen kept working fine since it wasn't logged out. Fall back
         // to fetching the profile fresh instead of giving up.
         if (vendor == null) {
-          final response = await _vendorService.getProfile();
-          if (response.success && response.data != null) {
-            vendor = response.data;
-            await _authService.cacheVendor(vendor!);
+          try {
+            final response = await _vendorService.getProfile();
+            if (response.success && response.data != null) {
+              vendor = response.data;
+              await _authService.cacheVendor(vendor!);
+            }
+          } catch (e) {
+            // Offline/timeout here must not log the vendor out: the token is
+            // still valid, we just could not refill the cache right now.
+            debugPrint('checkAuthStatus: profile refetch failed: $e');
           }
         }
 
@@ -53,12 +59,16 @@ class AuthProvider with ChangeNotifier {
           _isVendorLocked = vendor.isLocked == true;
           _isAuthenticated = true;
         } else {
-          _isAuthenticated = false;
+          // Token is valid but we have no profile yet. Stay authenticated so
+          // the app is usable, and let screens recover via ensureVendorLoaded.
+          _isAuthenticated = true;
+          debugPrint('checkAuthStatus: logged in but vendor profile unavailable');
         }
       } else {
         _isAuthenticated = false;
       }
     } catch (e) {
+      debugPrint('checkAuthStatus failed: $e');
       _isAuthenticated = false;
     }
 
@@ -211,6 +221,39 @@ class AuthProvider with ChangeNotifier {
       if (kDebugMode) {
         ('خطأ غير متوقع: ${e.toString()}');
       }
+      return false;
+    }
+  }
+
+  /// Re-fetches the vendor profile when [currentVendor] is null but the token
+  /// is still valid — e.g. the app launched with no connectivity, so
+  /// [checkAuthStatus] could neither read the cache nor reach the API.
+  ///
+  /// Without this a failed launch-time fetch left currentVendor null for the
+  /// whole session, since checkAuthStatus only runs once from the splash
+  /// screen. Returns true when a vendor is available afterwards.
+  Future<bool> ensureVendorLoaded() async {
+    if (_currentVendor != null) return true;
+    if (!await _authService.isLoggedIn()) return false;
+
+    try {
+      var vendor = await _authService.getCurrentVendor();
+      if (vendor == null) {
+        final response = await _vendorService.getProfile();
+        if (response.success && response.data != null) {
+          vendor = response.data;
+          await _authService.cacheVendor(vendor!);
+        }
+      }
+      if (vendor == null) return false;
+
+      _currentVendor = vendor;
+      _isVendorLocked = vendor.isLocked == true;
+      _isAuthenticated = true;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('ensureVendorLoaded failed: $e');
       return false;
     }
   }

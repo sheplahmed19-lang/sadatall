@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:location/location.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../network/api_client.dart';
 import '../config/api_config.dart';
 import 'package:location/location.dart' as location;
-import 'package:permission_handler/permission_handler.dart';
 
 class LocationTrackingService {
   static final LocationTrackingService _instance =
@@ -34,6 +33,7 @@ class LocationTrackingService {
     if (!serviceEnabled) {
       serviceEnabled = await _location.requestService();
       if (!serviceEnabled) {
+        debugPrint("Location services are turned off on the device");
         return false;
       }
     }
@@ -44,14 +44,14 @@ class LocationTrackingService {
     if (permissionGranted == location.PermissionStatus.denied) {
       permissionGranted = await _location.requestPermission();
       if (permissionGranted != location.PermissionStatus.granted) {
+        debugPrint("Location permission denied by user: $permissionGranted");
         return false;
       }
     }
 
-    // Request background permission for Android
-    if (await Permission.locationAlways.isDenied) {
-      await Permission.locationAlways.request();
-    }
+    // Foreground tracking only — deliberately no locationAlways request here.
+    // Requesting it hung startTracking() indefinitely, and it is not needed
+    // while the app is in use.
 
     return true;
   }
@@ -64,18 +64,20 @@ class LocationTrackingService {
       distanceFilter: _minDistanceFilter,
     );
 
-    // Enable background mode
-    await _location.enableBackgroundMode(enable: true);
+    // Foreground-only tracking: background mode needs ACCESS_BACKGROUND_LOCATION
+    // (which we no longer request) and starts a foreground service, so leave it
+    // off. Tracking stops when the app is backgrounded — that is intended.
   }
 
   /// Start tracking location
   Future<bool> startTracking() async {
     if (_isTracking) return true;
+    // debugPrint("/////////////////////Starting location tracking...");
 
     try {
       // Initialize location
       if (!await _initializeLocation()) {
-        ("Location initialization failed");
+        debugPrint("Location initialization failed");
         return false;
       }
 
@@ -94,17 +96,18 @@ class LocationTrackingService {
       // current position until their first ~5m of movement. Send one
       // immediate fix right away instead of waiting for that.
       try {
+        // debugPrint("********************Getting initial location...");
         final current = await _location.getLocation();
         _onLocationUpdate(current);
       } catch (e) {
-        ("Error getting initial location: $e");
+        debugPrint("Error getting initial location: $e");
       }
 
       _isTracking = true;
-      ("Location tracking started");
+      debugPrint("Location tracking started");
       return true;
-    } catch (e) {
-      ("Error starting location tracking: $e");
+    } catch (e, st) {
+      debugPrint("Error starting location tracking: $e\n$st");
       return false;
     }
   }
@@ -117,10 +120,7 @@ class LocationTrackingService {
     _lastKnownPosition = null;
     _lastUpdateTime = null;
 
-    // Disable background mode
-    await _location.enableBackgroundMode(enable: false);
-
-    ("Location tracking stopped");
+    debugPrint("Location tracking stopped");
   }
 
   /// Handle location updates
@@ -147,9 +147,7 @@ class LocationTrackingService {
     _lastKnownPosition = locationData;
     _lastUpdateTime = now;
 
-    (
-      "Location update: ${locationData.latitude}, ${locationData.longitude}",
-    );
+    ("Location update: ${locationData.latitude}, ${locationData.longitude}",);
     await _updateLocationOnServer(
       locationData.latitude!,
       locationData.longitude!,

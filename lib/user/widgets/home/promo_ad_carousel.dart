@@ -46,7 +46,9 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
     if (!mounted) return;
     if (result.success && result.data != null) {
       final data = result.data['data'] ?? result.data;
-      final list = (data['promoAds'] as List? ?? []).map((e) => e as Map<String, dynamic>).toList();
+      final list = (data['promoAds'] as List? ?? [])
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
       setState(() {
         _ads = list;
         _loading = false;
@@ -59,16 +61,22 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
 
   void _startAutoScroll() {
     _autoScrollTimer?.cancel();
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!mounted || !_pageController.hasClients) return;
       final next = (_currentPage + 1) % _ads.length;
-      _pageController.animateToPage(next, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
   Color _parseHex(String? hex) {
     try {
-      return Color(int.parse('FF${(hex ?? 'E4001B').replaceFirst('#', '')}', radix: 16));
+      return Color(
+        int.parse('FF${(hex ?? 'E4001B').replaceFirst('#', '')}', radix: 16),
+      );
     } catch (_) {
       return const Color(0xFFE4001B);
     }
@@ -98,7 +106,12 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
     if (!mounted) return;
     setState(() => _openingVendor = false);
     if (result.success && result.data != null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => VendorDetailsScreen(vendor: result.data!)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VendorDetailsScreen(vendor: result.data!),
+        ),
+      );
     }
   }
 
@@ -125,7 +138,12 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       child: GestureDetector(
                         onTap: _openingVendor ? null : () => _handleTap(data),
-                        child: _PromoAdCard(data: data, color: _parseHex(data['background_color_hex'] as String?)),
+                        child: _PromoAdCard(
+                          data: data,
+                          color: _parseHex(
+                            data['background_color_hex'] as String?,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -133,7 +151,10 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
                 if (_openingVendor)
                   const Positioned.fill(
                     child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
               ],
@@ -151,7 +172,12 @@ class _PromoAdCarouselState extends State<PromoAdCarousel> {
                   width: i == _currentPage ? 18 : 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: i == _currentPage ? _parseHex(_ads[_currentPage]['background_color_hex'] as String?) : Colors.grey[300],
+                    color: i == _currentPage
+                        ? _parseHex(
+                            _ads[_currentPage]['background_color_hex']
+                                as String?,
+                          )
+                        : Colors.grey[300],
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -179,8 +205,8 @@ class _PromoAdCard extends StatelessWidget {
     final hasLink = linkType == 'vendor'
         ? (data['vendor_id'] as String?)?.isNotEmpty == true
         : linkType == 'external'
-            ? (data['cta_link'] as String?)?.isNotEmpty == true
-            : false;
+        ? (data['cta_link'] as String?)?.isNotEmpty == true
+        : false;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -197,7 +223,10 @@ class _PromoAdCard extends StatelessWidget {
               child: Container(
                 width: 120,
                 height: 120,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.06)),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
               ),
             ),
             Row(
@@ -211,21 +240,42 @@ class _PromoAdCard extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
                       ),
                       if (hasLink) ...[
                         const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                          child: Text(ctaText, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            ctaText,
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ],
                     ],
