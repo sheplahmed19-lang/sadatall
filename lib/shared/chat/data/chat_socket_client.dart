@@ -22,11 +22,17 @@ class ChatSocketClient {
   final _threadUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _typingController = StreamController<Map<String, dynamic>>.broadcast();
   final _presenceController = StreamController<Map<String, dynamic>>.broadcast();
+  final _connectedController = StreamController<void>.broadcast();
 
   Stream<Map<String, dynamic>> get newMessages => _newMessageController.stream;
   Stream<Map<String, dynamic>> get threadUpdates => _threadUpdatedController.stream;
   Stream<Map<String, dynamic>> get typingEvents => _typingController.stream;
   Stream<Map<String, dynamic>> get presenceEvents => _presenceController.stream;
+
+  /// Fires on every successful (re)connection — the socket layer's way of
+  /// saying "the backend is reachable again", used to retry queued
+  /// outbound messages instead of waiting for the user to reopen the chat.
+  Stream<void> get connected => _connectedController.stream;
 
   static String _stripApiSuffix(String baseUrl) {
     var url = baseUrl.trim();
@@ -54,7 +60,10 @@ class ChatSocketClient {
       );
 
       _socket!
-        ..onConnect((_) => debugPrint('[chat socket] connected'))
+        ..onConnect((_) {
+          debugPrint('[chat socket] connected');
+          _connectedController.add(null);
+        })
         ..onConnectError((e) => debugPrint('[chat socket] connect error: $e'))
         ..onDisconnect((_) => debugPrint('[chat socket] disconnected'))
         ..on('new_message', (data) {

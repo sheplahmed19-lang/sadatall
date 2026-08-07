@@ -13,6 +13,7 @@ class MessageBubble extends StatelessWidget {
   final void Function(OrderRef ref)? onOrderRefTap;
   final VoidCallback? onDelete;
   final VoidCallback? onImageTap;
+  final VoidCallback? onRetry;
 
   const MessageBubble({
     super.key,
@@ -23,6 +24,7 @@ class MessageBubble extends StatelessWidget {
     this.onOrderRefTap,
     this.onDelete,
     this.onImageTap,
+    this.onRetry,
   });
 
   @override
@@ -62,17 +64,17 @@ class MessageBubble extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    _formatTime(message.sentAt),
-                    style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.7)),
-                  ),
+                  if (message.deliveryStatus == MessageDeliveryStatus.failed) ...[
+                    Text('بحاجة إلى إنترنت', style: TextStyle(fontSize: 10, color: Colors.red[100] ?? Colors.red)),
+                    const SizedBox(width: 4),
+                  ] else
+                    Text(
+                      _formatTime(message.sentAt),
+                      style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.7)),
+                    ),
                   if (isMine) ...[
                     const SizedBox(width: 4),
-                    Icon(
-                      isRead ? Icons.done_all : Icons.done,
-                      size: 14,
-                      color: isRead ? Colors.lightBlueAccent : textColor.withOpacity(0.7),
-                    ),
+                    _buildStatusIcon(textColor),
                   ],
                 ],
               ),
@@ -81,6 +83,28 @@ class MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildStatusIcon(Color textColor) {
+    switch (message.deliveryStatus) {
+      case MessageDeliveryStatus.sending:
+        return SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(strokeWidth: 1.5, color: textColor.withOpacity(0.7)),
+        );
+      case MessageDeliveryStatus.failed:
+        return GestureDetector(
+          onTap: onRetry,
+          child: const Icon(Icons.error_outline, size: 15, color: Colors.redAccent),
+        );
+      case MessageDeliveryStatus.sent:
+        return Icon(
+          isRead ? Icons.done_all : Icons.done,
+          size: 14,
+          color: isRead ? Colors.lightBlueAccent : textColor.withOpacity(0.7),
+        );
+    }
   }
 
   Widget _buildContent(BuildContext context, Color textColor) {

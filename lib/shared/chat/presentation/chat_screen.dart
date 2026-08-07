@@ -86,11 +86,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendText(String text) async {
     final chatId = _thread?.id;
     if (chatId == null) return;
-    try {
-      await _repo.sendTextMessage(chatId: chatId, sender: widget.self, text: text);
-    } catch (e) {
-      _showError('تعذر إرسال الرسالة', e);
-    }
+    // Queues locally and appears immediately; never throws — a failed
+    // network attempt just leaves the message flagged in the list instead
+    // of surfacing an error dialog, and retries automatically on reconnect.
+    await _repo.sendTextMessage(chatId: chatId, sender: widget.self, text: text);
   }
 
   Future<void> _handleAttach() async {
@@ -241,6 +240,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final m = messages[index];
                     final isMine = m.senderId == widget.self.participantId;
+                    final isUnconfirmed = m.deliveryStatus != MessageDeliveryStatus.sent;
                     return MessageBubble(
                       message: m,
                       isMine: isMine,
@@ -248,7 +248,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       accentColor: widget.accentColor,
                       onOrderRefTap: widget.onOrderRefTap,
                       onImageTap: m.attachmentUrl == null ? null : () => _openImage(context, m.attachmentUrl!),
-                      onDelete: isMine ? () => _repo.softDeleteMessage(_thread!.id, m.id) : null,
+                      // A message still in the outbox was never persisted
+                      // server-side, so there's nothing to soft-delete there —
+                      // "delete" on a failed one just drops it locally instead.
+                      onDelete: !isMine
+                          ? null
+                          : isUnconfirmed
+                              ? (m.deliveryStatus == MessageDeliveryStatus.failed
+                                  ? () => _repo.discardFailed(_thread!.id, m.clientMessageId!)
+                                  : null)
+                              : () => _repo.softDeleteMessage(_thread!.id, m.id),
+                      onRetry: m.deliveryStatus == MessageDeliveryStatus.failed
+                          ? () => _repo.retryFailed(_thread!.id, m.clientMessageId!)
+                          : null,
                     );
                   },
                 );

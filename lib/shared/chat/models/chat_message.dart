@@ -2,6 +2,13 @@ import 'chat_participant.dart';
 
 enum MessageType { text, image, voice, location, orderRef, file, video, system }
 
+/// Delivery state of an outgoing message. Only meaningful for messages this
+/// device sent — anything fetched from the server (REST or socket) is
+/// necessarily already [sent]. [sending]/[failed] messages are optimistic
+/// local placeholders backed by the outbox store, shown immediately so
+/// sending never has to wait on a round-trip before the message appears.
+enum MessageDeliveryStatus { sent, sending, failed }
+
 const Map<MessageType, String> _messageTypeStrings = {
   MessageType.text: 'text',
   MessageType.image: 'image',
@@ -71,6 +78,8 @@ class ChatMessage {
   final DateTime? sentAt;
   final List<String> readBy;
   final bool isDeleted;
+  final String? clientMessageId;
+  final MessageDeliveryStatus deliveryStatus;
 
   const ChatMessage({
     required this.id,
@@ -85,6 +94,8 @@ class ChatMessage {
     this.sentAt,
     this.readBy = const [],
     this.isDeleted = false,
+    this.clientMessageId,
+    this.deliveryStatus = MessageDeliveryStatus.sent,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -103,6 +114,8 @@ class ChatMessage {
       sentAt: json['sent_at'] == null ? null : DateTime.parse(json['sent_at'] as String),
       readBy: List<String>.from(json['read_by'] as List? ?? const []),
       isDeleted: json['is_deleted'] as bool? ?? false,
+      clientMessageId: json['client_message_id'] as String?,
+      deliveryStatus: MessageDeliveryStatus.sent,
     );
   }
 }
