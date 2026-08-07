@@ -34,6 +34,7 @@ class OrderAlertService {
   }
 
   static Future<void> _onEvent(CallEvent? event) async {
+    debugPrint('[OrderAlertService] event: $event');
     switch (event) {
       case CallEventActionCallAccept(:final callKitParams):
         await _handleAccept(callKitParams.id, callKitParams.extra);
@@ -114,7 +115,13 @@ class OrderAlertService {
       ),
     );
 
-    await FlutterCallkitIncoming.showCallkitIncoming(params);
+    debugPrint('[OrderAlertService] showCallkitIncoming callId=$callId orderId=$orderId duration=${params.duration}');
+    try {
+      await FlutterCallkitIncoming.showCallkitIncoming(params);
+      debugPrint('[OrderAlertService] showCallkitIncoming succeeded for orderId=$orderId');
+    } catch (e, st) {
+      debugPrint('[OrderAlertService] showCallkitIncoming FAILED for orderId=$orderId: $e\n$st');
+    }
   }
 
   /// Ends the ring alert on this device — used when the order was already

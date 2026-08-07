@@ -181,21 +181,18 @@ class NotificationService {
   }
 
   void _handleForegroundMessage(RemoteMessage message) async {
-    if (kDebugMode) {
-      ('Received foreground message: ${message.messageId}');
-      ('Title: ${message.notification?.title}');
-      ('Body: ${message.notification?.body}');
-      ('Data: ${message.data}');
-    }
+    debugPrint('[captain notif] foreground message ${message.messageId} data=${message.data}');
 
     // New-order ring alert — data-only messages, handled entirely via
     // CallKit's own full-screen UI instead of a local notification.
     final alertType = message.data['type'];
     if (alertType == 'NEW_ORDER_ALERT') {
+      debugPrint('[captain notif] NEW_ORDER_ALERT received (foreground) — showing CallKit alert');
       await OrderAlertService.showIncomingOrderAlert(message.data);
       return;
     }
     if (alertType == 'ORDER_TAKEN') {
+      debugPrint('[captain notif] ORDER_TAKEN received (foreground)');
       final orderId = message.data['orderId'];
       if (orderId != null) {
         await OrderAlertService.dismissIncomingOrderAlert(orderId);
@@ -342,7 +339,9 @@ class NotificationService {
 @pragma('vm:entry-point')
 Future<void> handleCaptainBackgroundOrderAlert(RemoteMessage message) async {
   final type = message.data['type'];
+  debugPrint('[captain notif] background message ${message.messageId} type=$type data=${message.data}');
   if (type == 'NEW_ORDER_ALERT') {
+    debugPrint('[captain notif] NEW_ORDER_ALERT received (background) — showing CallKit alert');
     await OrderAlertService.showIncomingOrderAlert(message.data);
   } else if (type == 'ORDER_TAKEN') {
     final orderId = message.data['orderId'];
