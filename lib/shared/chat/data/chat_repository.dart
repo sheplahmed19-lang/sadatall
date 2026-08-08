@@ -7,6 +7,21 @@ import 'chat_api_client.dart';
 import 'chat_outbox_store.dart';
 import 'chat_socket_client.dart';
 
+/// Absolute creation-order key for sorting messages — the database's own
+/// strictly-increasing auto-increment id, not any timestamp. Immune to
+/// device/server clock skew or timezone formatting entirely, unlike
+/// sorting on `sentAt`. A local/pending message (id like "local_<uuid>",
+/// no real server id yet) sorts using its local creation time instead,
+/// scaled into a range far above any real database id — pending messages
+/// are always the newest thing in the chat by definition, so this keeps
+/// them at the top until the server confirms and assigns the real id.
+BigInt _messageSortKey(ChatMessage m) {
+  final idAsInt = BigInt.tryParse(m.id);
+  if (idAsInt != null) return idAsInt;
+  final micros = (m.sentAt ?? DateTime.now()).microsecondsSinceEpoch;
+  return BigInt.from(micros);
+}
+
 /// Order lifecycle statuses that gate order-scoped chats, mirrored from the
 /// backend's shared Order status constants.
 class OrderChatTrigger {
@@ -82,7 +97,7 @@ class ChatRepository {
 
     void emit() {
       final list = byId.values.toList()
-        ..sort((a, b) => (b.sentAt ?? DateTime(0)).compareTo(a.sentAt ?? DateTime(0)));
+        ..sort((a, b) => _messageSortKey(b).compareTo(_messageSortKey(a)));
       if (!controller.isClosed) controller.add(list);
     }
 
