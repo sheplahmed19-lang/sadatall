@@ -77,6 +77,7 @@ class ChatRepository {
     late StreamController<List<ChatMessage>> controller;
     StreamSubscription? sub;
     StreamSubscription<String>? outboxSub;
+    StreamSubscription<void>? reconnectSub;
     final byId = <String, ChatMessage>{};
     final outboxKeys = <String>{};
 
@@ -100,6 +101,20 @@ class ChatRepository {
       emit();
     }
 
+    Future<void> refreshMessages() async {
+      try {
+        final json = await api.get('/chats/$chatId/messages', query: {'limit': limit.toString()});
+        final list = (json['messages'] as List).map((m) => ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)));
+        for (final m in list) {
+          byId[m.id] = m;
+        }
+        emit();
+      } catch (_) {
+        // Leave the stream open — a later socket event or retry can still
+        // populate it; the UI shows a spinner until the first emit.
+      }
+    }
+
     controller = StreamController<List<ChatMessage>>.broadcast(
       onListen: () async {
         socket.joinChat(chatId);
@@ -110,22 +125,24 @@ class ChatRepository {
           emit();
         });
         outboxSub = _outboxChanged.stream.where((id) => id == chatId).listen((_) => refreshOutbox());
+        // A reconnect gets a brand-new socket connection server-side, which
+        // drops this chat's room membership — a message sent while briefly
+        // disconnected (app backgrounded, network blip) never arrives as a
+        // live event, even though its push notification still fires
+        // (that's server-side and independent of socket room membership).
+        // Re-join and re-sync on every reconnect, not just the first
+        // subscribe, so the chat always catches up on its own.
+        reconnectSub = socket.connected.listen((_) {
+          socket.joinChat(chatId);
+          refreshMessages();
+        });
         await refreshOutbox();
-        try {
-          final json = await api.get('/chats/$chatId/messages', query: {'limit': limit.toString()});
-          final list = (json['messages'] as List).map((m) => ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)));
-          for (final m in list) {
-            byId[m.id] = m;
-          }
-          emit();
-        } catch (_) {
-          // Leave the stream open — a later socket event or retry can still
-          // populate it; the UI shows a spinner until the first emit.
-        }
+        await refreshMessages();
       },
       onCancel: () {
         sub?.cancel();
         outboxSub?.cancel();
+        reconnectSub?.cancel();
         socket.leaveChat(chatId);
       },
     );
