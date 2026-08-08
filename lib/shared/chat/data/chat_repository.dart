@@ -4,6 +4,7 @@ import '../models/chat_message.dart';
 import '../models/chat_participant.dart';
 import '../models/chat_thread.dart';
 import 'chat_api_client.dart';
+import 'chat_message_cache.dart';
 import 'chat_outbox_store.dart';
 import 'chat_socket_client.dart';
 
@@ -25,14 +26,16 @@ class OrderChatTrigger {
 /// "failed" (needs a connection) and is retried automatically on the next
 /// socket reconnect, or manually via [retryFailed].
 class ChatRepository {
-  ChatRepository({required this.api, required this.socket, ChatOutboxStore? outbox})
-      : _outbox = outbox ?? ChatOutboxStore() {
+  ChatRepository({required this.api, required this.socket, ChatOutboxStore? outbox, ChatMessageCache? cache})
+      : _outbox = outbox ?? ChatOutboxStore(),
+        _cache = cache ?? ChatMessageCache() {
     _reconnectSub = socket.connected.listen((_) => _retryAllFailed());
   }
 
   final ChatApiClient api;
   final ChatSocketClient socket;
   final ChatOutboxStore _outbox;
+  final ChatMessageCache _cache;
   final _uuid = const Uuid();
   final _outboxChanged = StreamController<String>.broadcast();
   StreamSubscription<void>? _reconnectSub;
@@ -80,11 +83,29 @@ class ChatRepository {
     StreamSubscription<void>? reconnectSub;
     final byId = <String, ChatMessage>{};
     final outboxKeys = <String>{};
+    // Raw wire-format JSON per message, kept alongside `byId` purely so the
+    // on-disk cache can be persisted without needing a ChatMessage.toJson().
+    final rawById = <String, Map<String, dynamic>>{};
 
     void emit() {
       final list = byId.values.toList()
         ..sort((a, b) => (b.sentAt ?? DateTime(0)).compareTo(a.sentAt ?? DateTime(0)));
       if (!controller.isClosed) controller.add(list);
+    }
+
+    Future<void> persistCache() => _cache.save(chatId, rawById.values.toList());
+
+    Future<void> loadCache() async {
+      final cached = await _cache.load(chatId);
+      for (final raw in cached) {
+        final id = raw['id'] as String?;
+        if (id == null) continue;
+        try {
+          byId[id] = ChatMessage.fromJson(raw);
+          rawById[id] = raw;
+        } catch (_) {}
+      }
+      emit();
     }
 
     Future<void> refreshOutbox() async {
@@ -104,14 +125,17 @@ class ChatRepository {
     Future<void> refreshMessages() async {
       try {
         final json = await api.get('/chats/$chatId/messages', query: {'limit': limit.toString()});
-        final list = (json['messages'] as List).map((m) => ChatMessage.fromJson(Map<String, dynamic>.from(m as Map)));
-        for (final m in list) {
-          byId[m.id] = m;
+        final rawList = (json['messages'] as List).map((m) => Map<String, dynamic>.from(m as Map));
+        for (final raw in rawList) {
+          byId[raw['id'] as String] = ChatMessage.fromJson(raw);
+          rawById[raw['id'] as String] = raw;
         }
         emit();
+        await persistCache();
       } catch (_) {
-        // Leave the stream open — a later socket event or retry can still
-        // populate it; the UI shows a spinner until the first emit.
+        // Leave the stream open — the cache already loaded above shows
+        // whatever's locally known, and a later socket event or retry can
+        // still populate fresher data.
       }
     }
 
@@ -120,9 +144,11 @@ class ChatRepository {
         socket.joinChat(chatId);
         sub = socket.newMessages.listen((data) {
           if (data['chatId'] != chatId) return;
-          final message = ChatMessage.fromJson(Map<String, dynamic>.from(data['message'] as Map));
-          byId[message.id] = message;
+          final raw = Map<String, dynamic>.from(data['message'] as Map);
+          byId[raw['id'] as String] = ChatMessage.fromJson(raw);
+          rawById[raw['id'] as String] = raw;
           emit();
+          persistCache();
         });
         outboxSub = _outboxChanged.stream.where((id) => id == chatId).listen((_) => refreshOutbox());
         // A reconnect gets a brand-new socket connection server-side, which
@@ -136,6 +162,9 @@ class ChatRepository {
           socket.joinChat(chatId);
           refreshMessages();
         });
+        // Show whatever's cached locally immediately — including fully
+        // offline, before the REST fetch below has any chance to respond.
+        await loadCache();
         await refreshOutbox();
         await refreshMessages();
       },
