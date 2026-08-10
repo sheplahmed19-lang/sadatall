@@ -13,11 +13,25 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:label="تعالالي _T3alaly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- flutter_overlay_window's service isn't declared in its own bundled
+             manifest (unlike its permissions, which do auto-merge) — the host
+             app must declare it directly, with an explicit foregroundServiceType
+             since Android 14 (API 34) rejects undeclared foreground service types. -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="incoming_order_alert" />
+        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true"
