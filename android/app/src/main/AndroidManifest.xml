@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Required from Android 10 (API 29) for the captain's new-order alert:
+         CallKit shows it with isFullScreen=true and no ringtonePath, relying on
+         the system ring stream. Without this permission Android silently
+         downgrades the full-screen intent to a plain notification, so the alert
+         never rings. On Android 14+ this declaration is also a prerequisite for
+         FlutterCallkitIncoming.requestFullIntentPermission() to be grantable. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />

@@ -34,8 +34,14 @@ class MessageBubble extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(12)),
-          child: Text(message.text ?? '', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            message.text ?? '',
+            style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+          ),
         ),
       );
     }
@@ -44,13 +50,18 @@ class MessageBubble extends StatelessWidget {
     final textColor = isMine ? Colors.white : Colors.black87;
 
     return Align(
-      alignment: isMine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+      // Physical (not directional) alignment: the app is forced RTL, so
+      // AlignmentDirectional.centerEnd would put the sender on the left.
+      // Sent messages always sit on the right, received ones on the left.
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: () => _showActions(context),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           padding: const EdgeInsets.all(10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
+          ),
           decoration: BoxDecoration(
             color: bubbleColor,
             borderRadius: BorderRadius.circular(14),
@@ -64,13 +75,23 @@ class MessageBubble extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (message.deliveryStatus == MessageDeliveryStatus.failed) ...[
-                    Text('بحاجة إلى إنترنت', style: TextStyle(fontSize: 10, color: Colors.red[100] ?? Colors.red)),
+                  if (message.deliveryStatus ==
+                      MessageDeliveryStatus.failed) ...[
+                    Text(
+                      'بحاجة إلى إنترنت',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.red[100] ?? Colors.red,
+                      ),
+                    ),
                     const SizedBox(width: 4),
                   ] else
                     Text(
                       _formatTime(message.sentAt),
-                      style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.7)),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: textColor.withOpacity(0.7),
+                      ),
                     ),
                   if (isMine) ...[
                     const SizedBox(width: 4),
@@ -91,12 +112,19 @@ class MessageBubble extends StatelessWidget {
         return SizedBox(
           width: 12,
           height: 12,
-          child: CircularProgressIndicator(strokeWidth: 1.5, color: textColor.withOpacity(0.7)),
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: textColor.withOpacity(0.7),
+          ),
         );
       case MessageDeliveryStatus.failed:
         return GestureDetector(
           onTap: onRetry,
-          child: const Icon(Icons.error_outline, size: 15, color: Colors.redAccent),
+          child: const Icon(
+            Icons.error_outline,
+            size: 15,
+            color: Colors.redAccent,
+          ),
         );
       case MessageDeliveryStatus.sent:
         return Icon(
@@ -109,7 +137,13 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildContent(BuildContext context, Color textColor) {
     if (message.isDeleted) {
-      return Text('تم حذف هذه الرسالة', style: TextStyle(color: textColor.withOpacity(0.6), fontStyle: FontStyle.italic));
+      return Text(
+        'تم حذف هذه الرسالة',
+        style: TextStyle(
+          color: textColor.withOpacity(0.6),
+          fontStyle: FontStyle.italic,
+        ),
+      );
     }
     switch (message.type) {
       case MessageType.text:
@@ -120,15 +154,28 @@ class MessageBubble extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: message.attachmentUrl == null
-                ? const SizedBox(width: 160, height: 160, child: Icon(Icons.image))
+                ? const SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: Icon(Icons.image),
+                  )
                 : Image.network(
                     message.attachmentUrl!,
                     width: 200,
                     height: 200,
                     fit: BoxFit.cover,
-                    loadingBuilder: (c, child, progress) =>
-                        progress == null ? child : const SizedBox(width: 200, height: 200, child: Center(child: CircularProgressIndicator())),
-                    errorBuilder: (c, e, s) => const SizedBox(width: 200, height: 200, child: Icon(Icons.broken_image)),
+                    loadingBuilder: (c, child, progress) => progress == null
+                        ? child
+                        : const SizedBox(
+                            width: 200,
+                            height: 200,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                    errorBuilder: (c, e, s) => const SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: Icon(Icons.broken_image),
+                    ),
                   ),
           ),
         );
@@ -144,20 +191,28 @@ class MessageBubble extends StatelessWidget {
             : OrderRefCard(
                 orderRef: message.orderRef!,
                 accentColor: accentColor,
-                onTap: onOrderRefTap == null ? null : () => onOrderRefTap!(message.orderRef!),
+                onTap: onOrderRefTap == null
+                    ? null
+                    : () => onOrderRefTap!(message.orderRef!),
               );
       case MessageType.file:
-        return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.insert_drive_file, color: textColor),
-          const SizedBox(width: 6),
-          Text(message.text ?? 'ملف', style: TextStyle(color: textColor)),
-        ]);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insert_drive_file, color: textColor),
+            const SizedBox(width: 6),
+            Text(message.text ?? 'ملف', style: TextStyle(color: textColor)),
+          ],
+        );
       case MessageType.video:
-        return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.videocam, color: textColor),
-          const SizedBox(width: 6),
-          Text('فيديو', style: TextStyle(color: textColor)),
-        ]);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam, color: textColor),
+            const SizedBox(width: 6),
+            Text('فيديو', style: TextStyle(color: textColor)),
+          ],
+        );
       case MessageType.system:
         return const SizedBox.shrink();
     }
@@ -170,7 +225,8 @@ class MessageBubble extends StatelessWidget {
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
-            if (message.type == MessageType.text && (message.text?.isNotEmpty ?? false))
+            if (message.type == MessageType.text &&
+                (message.text?.isNotEmpty ?? false))
               ListTile(
                 leading: const Icon(Icons.copy),
                 title: const Text('نسخ'),
@@ -215,7 +271,9 @@ class _LocationPreview extends StatelessWidget {
       onTap: loc == null
           ? null
           : () async {
-              final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}');
+              final uri = Uri.parse(
+                'https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}',
+              );
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
@@ -225,7 +283,13 @@ class _LocationPreview extends StatelessWidget {
         children: [
           Icon(Icons.location_on, color: textColor),
           const SizedBox(width: 6),
-          Text('فتح الموقع في الخرائط', style: TextStyle(color: textColor, decoration: TextDecoration.underline)),
+          Text(
+            'فتح الموقع في الخرائط',
+            style: TextStyle(
+              color: textColor,
+              decoration: TextDecoration.underline,
+            ),
+          ),
         ],
       ),
     );

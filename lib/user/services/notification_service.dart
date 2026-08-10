@@ -26,7 +26,9 @@ const Set<String> _kOrderNotificationTypes = {
 };
 
 @pragma('vm:entry-point')
-Future<void> userFirebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> userFirebaseMessagingBackgroundHandler(
+  RemoteMessage message,
+) async {
   _handleUserNotificationData(message.data);
 }
 
@@ -80,9 +82,7 @@ Future<void> _handleUserNotificationTap(Map<String, dynamic> data) async {
   if (navState == null) return;
 
   navState.push(
-    MaterialPageRoute(
-      builder: (_) => _OrderLoadingScreen(orderId: orderId),
-    ),
+    MaterialPageRoute(builder: (_) => _OrderLoadingScreen(orderId: orderId)),
   );
 }
 
@@ -98,8 +98,14 @@ void _openChatFromNotification(Map<String, dynamic> data) {
   }
 
   final orderId = data['orderId'] as String?;
-  if (chatId.endsWith('_user_captain') && orderId != null && orderId.isNotEmpty) {
-    navState.push(MaterialPageRoute(builder: (_) => _OrderChatLoadingScreen(orderId: orderId)));
+  if (chatId.endsWith('_user_captain') &&
+      orderId != null &&
+      orderId.isNotEmpty) {
+    navState.push(
+      MaterialPageRoute(
+        builder: (_) => _OrderChatLoadingScreen(orderId: orderId),
+      ),
+    );
   }
 }
 
@@ -111,7 +117,8 @@ class _OrderChatLoadingScreen extends StatefulWidget {
   const _OrderChatLoadingScreen({required this.orderId});
 
   @override
-  State<_OrderChatLoadingScreen> createState() => _OrderChatLoadingScreenState();
+  State<_OrderChatLoadingScreen> createState() =>
+      _OrderChatLoadingScreenState();
 }
 
 class _OrderChatLoadingScreenState extends State<_OrderChatLoadingScreen> {
@@ -185,9 +192,7 @@ class _OrderLoadingScreenState extends State<_OrderLoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -212,20 +217,20 @@ class NotificationService {
     // Initialize local notifications
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     final DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+
     final InitializationSettings initializationSettings =
         InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-    
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
+
     await _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
@@ -242,14 +247,17 @@ class NotificationService {
     );
     await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // Handle background messages
-    FirebaseMessaging.onBackgroundMessage(userFirebaseMessagingBackgroundHandler);
+    FirebaseMessaging.onBackgroundMessage(
+      userFirebaseMessagingBackgroundHandler,
+    );
 
     // Handle notification tap when app is backgrounded
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -284,7 +292,7 @@ class NotificationService {
       // Only send FCM token if user is logged in (has access token)
       final storageService = StorageService();
       final accessToken = await storageService.getAccessToken();
-      
+
       if (accessToken != null && accessToken.isNotEmpty) {
         final apiService = ApiService();
         await apiService.updateFCMToken(token);
@@ -300,7 +308,7 @@ class NotificationService {
       }
     }
   }
-  
+
   // Public method for sending FCM token to backend (used after login/signup)
   Future<void> sendTokenToBackend(String? token) async {
     if (token != null) {
@@ -311,8 +319,9 @@ class NotificationService {
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     ('Foreground message received: ${message.notification?.title}');
 
-    final imageUrl = message.data['imageUrl'] as String?
-        ?? message.notification?.android?.imageUrl;
+    final imageUrl =
+        message.data['imageUrl'] as String? ??
+        message.notification?.android?.imageUrl;
 
     ('Foreground imageUrl: $imageUrl');
 
@@ -341,12 +350,18 @@ class NotificationService {
     }
   }
 
-  Future<void> _showLocalNotification(String title, String body,
-      {String? imageUrl, Map<String, dynamic>? data}) async {
+  Future<void> _showLocalNotification(
+    String title,
+    String body, {
+    String? imageUrl,
+    Map<String, dynamic>? data,
+  }) async {
     AndroidNotificationDetails androidNotificationDetails;
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      final ByteArrayAndroidBitmap? bigPicture = await _loadNetworkImage(imageUrl);
+      final ByteArrayAndroidBitmap? bigPicture = await _loadNetworkImage(
+        imageUrl,
+      );
       androidNotificationDetails = AndroidNotificationDetails(
         'channel_id',
         'channel_name',

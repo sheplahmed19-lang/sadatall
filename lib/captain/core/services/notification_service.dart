@@ -18,6 +18,10 @@ const Set<String> _kAvailableOrderTypes = {
   'NEW_ORDER',
   'DELIVERY_AVAILABLE',
   'SPECIAL_ORDER',
+  // The backend sends SPECIAL_ORDER_AVAILABLE for special-order pushes
+  // (orderService.createSpecialOrder); without it those taps fell through
+  // and left the captain on whatever tab they were already on.
+  'SPECIAL_ORDER_AVAILABLE',
 };
 
 const Set<String> _kCurrentOrderTypes = {
@@ -28,7 +32,12 @@ const Set<String> _kCurrentOrderTypes = {
 /// Switches the captain app's bottom tab based on an order notification's
 /// `type`, using the root provider container (works without a BuildContext).
 void _handleCaptainOrderNotification(Map<String, dynamic> data) {
-  final type = data['type'] as String?;
+  // Ring alerts arrive as type=NEW_ORDER_ALERT with the original availability
+  // type preserved in `orderType` (the backend rewrites it so the CallKit ring
+  // triggers). Fall back to it so tapping still lands on the right tab.
+  final type = (data['type'] as String?) == 'NEW_ORDER_ALERT'
+      ? (data['orderType'] as String?) ?? 'DELIVERY_AVAILABLE'
+      : data['type'] as String?;
   if (type == null) return;
 
   if (type == 'chat_message') {
