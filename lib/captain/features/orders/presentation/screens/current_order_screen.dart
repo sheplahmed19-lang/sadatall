@@ -216,8 +216,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
                 'رقم المطعم/المتجر:',
                 order.vendor!.contactNumber,
               ),
-            // Only show description for special orders (vendorId == '-1')
-            if (order.vendorId == '-1')
+            if (order.description.isNotEmpty)
               _buildOrderInfoWithClickablePhones(
                 'وصف الطلب:',
                 order.description,
@@ -241,9 +240,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
               'وقت الطلب:',
               AppUtils.formatDateTime(order.createdAt.toLocal()),
             ),
-            // Only show additional notes for special orders (vendorId == '-1')
-            if (order.vendorId == '-1' &&
-                order.additionalNotes != null &&
+            if (order.additionalNotes != null &&
                 order.additionalNotes!.isNotEmpty)
               _buildOrderInfoWithClickablePhones(
                 'ملاحظات:',
