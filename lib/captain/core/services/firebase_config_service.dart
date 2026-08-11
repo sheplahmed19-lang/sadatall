@@ -137,7 +137,7 @@ class FirebaseConfigService {
     if (firestoreBaseUrl != null) {
       // Update local storage with the fetched value and the ApiConfig
       await ApiConfig.setBaseUrlWithFallback(firestoreBaseUrl);
-      ('Using base URL from Firestore: $firestoreBaseUrl');
+      debugPrint('Using base URL from Firestore: $firestoreBaseUrl');
       return firestoreBaseUrl;
     }
 

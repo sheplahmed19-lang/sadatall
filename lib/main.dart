@@ -55,7 +55,8 @@ import 'user/screens/main_screen.dart' as user_main;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 // Separate key for the mode selector so it never reuses a mode app's navigator state.
-final GlobalKey<NavigatorState> _modeSelectorNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _modeSelectorNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 /// Root Riverpod container backing the whole widget tree (via
 /// UncontrolledProviderScope below). Lets services without a BuildContext
@@ -271,7 +272,10 @@ class _RootAppState extends State<RootApp> {
                           'https://play.google.com/store/apps/details?id=sadat.delivery.com';
                       final uri = Uri.parse(storeUrl);
                       if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
                       }
                     },
                     child: const Text('تحديث الآن'),

@@ -93,9 +93,52 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _openCaptainLocation() async {
-    // For now, always use 0,0 coordinates as requested
-    const lat = 31.2144224;
-    const lng = 29.9248107;
+    final captainId = _order.captain?.id;
+    if (captainId == null || captainId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('معلومات الكابتن غير متوفرة'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Read the captain's live position instead of the hardcoded coordinates
+    // that used to be here, which pinned every captain to the same spot.
+    final locationResponse = await _captainService.getCaptainLocation(
+      captainId,
+    );
+    if (!locationResponse.success || locationResponse.data == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              locationResponse.error ?? 'فشل في تحديد موقع الكابتن',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    final lat = locationResponse.data!.latitude;
+    final lng = locationResponse.data!.longitude;
+
+    if (lat == 0 && lng == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('موقع الكابتن غير متاح حالياً'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
 
     try {
       // Try different URL formats for better compatibility
@@ -310,14 +353,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
               tooltip: 'محادثة مع الكابتن',
               onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => VendorOrderChatScreen(
-                    orderId: _order.id.toString(),
-                    captainId: _order.captain!.id,
-                    captainName: _order.captain!.userName,
-                    orderStatus: _order.status,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => VendorOrderChatScreen(
+                      orderId: _order.id.toString(),
+                      captainId: _order.captain!.id,
+                      captainName: _order.captain!.userName,
+                      orderStatus: _order.status,
+                    ),
                   ),
-                ));
+                );
               },
             ),
           IconButton(

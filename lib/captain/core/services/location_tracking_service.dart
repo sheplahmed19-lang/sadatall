@@ -17,12 +17,19 @@ class LocationTrackingService {
   final ApiClient _apiClient = ApiClient();
 
   StreamSubscription<LocationData>? _locationSubscription;
+  Timer? _periodicTimer;
   LocationData? _lastKnownPosition;
   DateTime? _lastUpdateTime;
   bool _isTracking = false;
 
   static const Duration _minUpdateInterval = Duration(seconds: 3);
   static const double _minDistanceFilter = 5.0; // meters
+
+  /// The server is refreshed at least this often, even when the captain is
+  /// sitting still. onLocationChanged only fires after real movement, so
+  /// without this a stationary captain's position goes stale and looks
+  /// "stuck" to whoever is watching them (vendor/admin).
+  static const Duration _periodicUpdateInterval = Duration(seconds: 30);
 
   bool get isTracking => _isTracking;
 
@@ -103,6 +110,14 @@ class LocationTrackingService {
         debugPrint("Error getting initial location: $e");
       }
 
+      // Heartbeat: push the current fix every 30s regardless of movement, so
+      // a stationary captain still reports a fresh position.
+      _periodicTimer?.cancel();
+      _periodicTimer = Timer.periodic(
+        _periodicUpdateInterval,
+        (_) => _sendPeriodicUpdate(),
+      );
+
       _isTracking = true;
       debugPrint("Location tracking started");
       return true;
@@ -116,11 +131,31 @@ class LocationTrackingService {
   Future<void> stopTracking() async {
     _locationSubscription?.cancel();
     _locationSubscription = null;
+    _periodicTimer?.cancel();
+    _periodicTimer = null;
     _isTracking = false;
     _lastKnownPosition = null;
     _lastUpdateTime = null;
 
     debugPrint("Location tracking stopped");
+  }
+
+  /// Reads a fresh fix and sends it, bypassing the movement/throttle filters
+  /// in [_onLocationUpdate] — the whole point of the heartbeat is to report
+  /// a position that has *not* changed.
+  Future<void> _sendPeriodicUpdate() async {
+    try {
+      final current = await _location.getLocation();
+      final lat = current.latitude;
+      final lng = current.longitude;
+      if (lat == null || lng == null) return;
+
+      _lastKnownPosition = current;
+      _lastUpdateTime = DateTime.now();
+      await _updateLocationOnServer(lat, lng);
+    } catch (e) {
+      debugPrint("Periodic location update failed: $e");
+    }
   }
 
   /// Handle location updates
@@ -170,9 +205,15 @@ class LocationTrackingService {
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
 
+    // Haversine. The sin/cos terms are required: without them the result is
+    // badly understated for east-west movement (a real 1km reads as ~600m),
+    // which wrongly filtered out genuine movement below _minDistanceFilter.
     double a =
-        (dLat / 2) * (dLat / 2) +
-        _toRadians(lat1) * _toRadians(lat2) * (dLon / 2) * (dLon / 2);
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
     double c = 2 * asin(sqrt(a));
 
     return earthRadius * c;
