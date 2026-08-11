@@ -1,12 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 
-/// A widget that displays text with clickable phone numbers.
+/// A widget that displays text with highlighted phone numbers.
 /// Phone numbers are automatically detected and highlighted.
-/// Tap to call, long-press to copy.
+/// Tap to copy — the captain app does not place calls.
 class ClickablePhoneText extends StatelessWidget {
   final String text;
   final TextStyle? style;
@@ -75,27 +74,12 @@ class ClickablePhoneText extends StatelessWidget {
         ));
       }
 
-      // Add the clickable phone number: short tap to call, long press to copy.
-      // A single TapGestureRecognizer can't distinguish long-press, so track
-      // the press duration manually via onTapDown/onTapUp.
-      DateTime? pressStart;
+      // Add the tappable phone number — tapping copies it.
       spans.add(TextSpan(
         text: phoneNumber,
         style: phoneStyle,
         recognizer: TapGestureRecognizer()
-          ..onTapDown = (_) {
-            pressStart = DateTime.now();
-          }
-          ..onTapUp = (_) {
-            final start = pressStart;
-            final isLongPress = start != null &&
-                DateTime.now().difference(start) > const Duration(milliseconds: 450);
-            if (isLongPress) {
-              copyPhoneNumber(context, phoneNumber);
-            } else {
-              _makePhoneCall(phoneNumber);
-            }
-          },
+          ..onTap = () => copyPhoneNumber(context, phoneNumber),
       ));
 
       lastEnd = match.end;
@@ -112,14 +96,6 @@ class ClickablePhoneText extends StatelessWidget {
     return spans.isEmpty ? [TextSpan(text: text, style: normalStyle)] : spans;
   }
 
-  static Future<void> _makePhoneCall(String phoneNumber) async {
-    // Clean the phone number for the tel: URI
-    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-    final url = 'tel:$cleanNumber';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
-  }
 }
 
 /// Copies [phoneNumber] to the clipboard and shows a confirmation snackbar.
@@ -130,8 +106,8 @@ void copyPhoneNumber(BuildContext context, String phoneNumber) {
   );
 }
 
-/// A widget specifically for displaying a phone number field that is always
-/// clickable: tap to call, with an adjacent button to copy the number.
+/// A widget specifically for displaying a phone number field: tap the number
+/// or the adjacent button to copy it.
 class ClickablePhoneField extends StatelessWidget {
   final String phoneNumber;
   final TextStyle? style;
@@ -148,8 +124,7 @@ class ClickablePhoneField extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
-          onTap: () => _makePhoneCall(phoneNumber),
-          onLongPress: () => copyPhoneNumber(context, phoneNumber),
+          onTap: () => copyPhoneNumber(context, phoneNumber),
           child: Text(
             phoneNumber,
             style: style ??
@@ -174,13 +149,5 @@ class ClickablePhoneField extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-    final url = 'tel:$cleanNumber';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
   }
 }

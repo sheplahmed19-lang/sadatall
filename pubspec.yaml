@@ -1,7 +1,7 @@
 name: sadat_delivery_merged
 description: "Sadat Delivery - Unified app for Captain, Vendor, and User"
 publish_to: "none"
-version: 1.0.8+24
+version: 1.0.9+27
 environment:
   sdk: ^3.8.1
 
@@ -60,13 +60,6 @@ dependencies:
   cloud_firestore: ^5.6.6
   flutter_local_notifications: ^19.4.1
 
-  # Captain incoming-order ring alert
-  # iOS: call-like full-screen CallKit UI (Apple allows no other mechanism
-  # to take over the screen from a backgrounded/killed app).
-  flutter_callkit_incoming: ^3.1.3
-  # Android: custom half-screen overlay instead of CallKit's full-screen UI.
-  flutter_overlay_window: ^0.5.0
-  vibration: ^3.2.0
   uuid: ^4.5.1
 
   # Navigation

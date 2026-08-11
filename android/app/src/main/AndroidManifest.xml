@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions needed by all 3 apps -->
+       <!-- Permissions needed by all 3 apps -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -8,37 +8,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Required from Android 10 (API 29) for the captain's new-order alert:
-         CallKit shows it with isFullScreen=true and no ringtonePath, relying on
-         the system ring stream. Without this permission Android silently
-         downgrades the full-screen intent to a plain notification, so the alert
-         never rings. On Android 14+ this declaration is also a prerequisite for
-         FlutterCallkitIncoming.requestFullIntentPermission() to be grantable. -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
+    
     <application
         android:label="تعالالي _T3alaly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- flutter_overlay_window's service isn't declared in its own bundled
-             manifest (unlike its permissions, which do auto-merge) — the host
-             app must declare it directly, with an explicit foregroundServiceType
-             since Android 14 (API 34) rejects undeclared foreground service types. -->
-        <service
-            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
-            android:foregroundServiceType="specialUse"
-            android:exported="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="incoming_order_alert" />
-        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true"

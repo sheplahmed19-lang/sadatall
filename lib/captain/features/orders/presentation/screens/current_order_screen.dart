@@ -254,20 +254,6 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
               children: [
                 Expanded(
                   child: CustomButton(
-                    text: 'اتصال',
-                    onPressed: isProcessing
-                        ? null
-                        : () {
-                            _makePhoneCall(order.phoneNumber);
-                          },
-                    type: ButtonType.outlined,
-                    icon: Icons.phone,
-                    height: 40,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: CustomButton(
                     text: 'تم التسليم',
                     onPressed: isProcessing
                         ? null
@@ -479,19 +465,6 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
         return AppColors.success;
       case OrderStatus.cancelled:
         return AppColors.error;
-    }
-  }
-
-  void _makePhoneCall(String phoneNumber) async {
-    final url = 'tel:$phoneNumber';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يمكن إجراء مكالمة هاتفية')),
-        );
-      }
     }
   }
 

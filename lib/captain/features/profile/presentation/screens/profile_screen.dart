@@ -368,9 +368,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 final error = ref.read(authStateProvider).error;
                 if (error != null) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error)),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error)));
                   }
                   return;
                 }

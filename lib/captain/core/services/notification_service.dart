@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +11,6 @@ import 'package:sadat_delivery_merged/captain/main_navigation.dart'
 import 'package:sadat_delivery_merged/captain/features/chat/captain_support_chat_screen.dart';
 import '../errors/app_exceptions.dart';
 import '../network/api_client.dart';
-import 'order_alert_service.dart';
 
 const Set<String> _kAvailableOrderTypes = {
   'NEW_ORDER',
@@ -32,9 +30,9 @@ const Set<String> _kCurrentOrderTypes = {
 /// Switches the captain app's bottom tab based on an order notification's
 /// `type`, using the root provider container (works without a BuildContext).
 void _handleCaptainOrderNotification(Map<String, dynamic> data) {
-  // Ring alerts arrive as type=NEW_ORDER_ALERT with the original availability
-  // type preserved in `orderType` (the backend rewrites it so the CallKit ring
-  // triggers). Fall back to it so tapping still lands on the right tab.
+  // New-order alerts arrive as type=NEW_ORDER_ALERT with the original
+  // availability type preserved in `orderType` (the backend rewrites it).
+  // Fall back to it so tapping still lands on the right tab.
   final type = (data['type'] as String?) == 'NEW_ORDER_ALERT'
       ? (data['orderType'] as String?) ?? 'DELIVERY_AVAILABLE'
       : data['type'] as String?;
@@ -122,15 +120,6 @@ class NotificationService {
         },
       );
 
-      // New-order ring alert: registers the accept/decline/timeout listener.
-      OrderAlertService.initialize();
-      // Android 14+ requires this runtime grant separately from the
-      // manifest permission, or the full-screen alert silently degrades
-      // to a normal notification.
-      try {
-        await FlutterCallkitIncoming.requestFullIntentPermission();
-      } catch (_) {}
-
       // Configure message handlers
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
       FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
@@ -192,20 +181,18 @@ class NotificationService {
   void _handleForegroundMessage(RemoteMessage message) async {
     debugPrint('[captain notif] foreground message ${message.messageId} data=${message.data}');
 
-    // New-order ring alert — data-only messages, handled entirely via
-    // CallKit's own full-screen UI instead of a local notification.
+    // New-order alerts are sent data-only by the backend (no `notification`
+    // block), so nothing is shown unless we raise a local notification here.
     final alertType = message.data['type'];
     if (alertType == 'NEW_ORDER_ALERT') {
-      debugPrint('[captain notif] NEW_ORDER_ALERT received (foreground) — showing CallKit alert');
-      await OrderAlertService.showIncomingOrderAlert(message.data);
+      debugPrint('[captain notif] NEW_ORDER_ALERT received (foreground) — showing notification');
+      await showNewOrderNotification(message.data);
       return;
     }
+    // ORDER_TAKEN only existed to dismiss the ring alert; with notifications
+    // only there is nothing to tear down.
     if (alertType == 'ORDER_TAKEN') {
-      debugPrint('[captain notif] ORDER_TAKEN received (foreground)');
-      final orderId = message.data['orderId'];
-      if (orderId != null) {
-        await OrderAlertService.dismissIncomingOrderAlert(orderId);
-      }
+      debugPrint('[captain notif] ORDER_TAKEN received (foreground) — ignored');
       return;
     }
 
@@ -341,21 +328,64 @@ class NotificationService {
   }
 }
 
-/// Handles a captain-relevant order-alert push from the FCM background
-/// isolate (app backgrounded or fully killed). Safe to call for every
-/// background message regardless of app mode — non-captain messages just
-/// won't match either type below.
+/// Raises the tray notification for a new available order.
+///
+/// These pushes are data-only (the backend omits the `notification` block so
+/// the Flutter side is always woken), which means the OS shows nothing by
+/// itself — this is what actually surfaces the order to the captain. Usable
+/// from both the app isolate and the FCM background isolate, so it builds its
+/// own plugin instance rather than relying on NotificationService's.
+Future<void> showNewOrderNotification(Map<String, dynamic> data) async {
+  final plugin = FlutterLocalNotificationsPlugin();
+  // In the background isolate the plugin has never been initialized; doing it
+  // again in the app isolate is harmless.
+  await plugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    ),
+  );
+
+  const details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'default_channel',
+      'General Notifications',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('order_ping'),
+    ),
+    iOS: DarwinNotificationDetails(sound: 'order_ping.mp3'),
+  );
+
+  final vendorName = data['vendorName']?.toString() ?? '';
+  final deliveryPrice = data['deliveryPrice']?.toString() ?? '';
+  final body = [
+    if (vendorName.isNotEmpty) vendorName,
+    if (deliveryPrice.isNotEmpty) '$deliveryPrice جنيه',
+  ].join(' - ');
+
+  await plugin.show(
+    // Keyed by order so repeated pushes for the same order replace rather
+    // than stack, and different orders each get their own notification.
+    data['orderId']?.toString().hashCode ?? DateTime.now().millisecondsSinceEpoch.hashCode,
+    'طلب توصيل جديد',
+    body.isNotEmpty ? body : 'اضغط لعرض التفاصيل',
+    details,
+    payload: (data['orderType'] ?? data['type'])?.toString(),
+  );
+}
+
+/// Handles a captain-relevant order push from the FCM background isolate
+/// (app backgrounded or fully killed). Safe to call for every background
+/// message regardless of app mode — non-captain messages just won't match.
 @pragma('vm:entry-point')
 Future<void> handleCaptainBackgroundOrderAlert(RemoteMessage message) async {
   final type = message.data['type'];
   debugPrint('[captain notif] background message ${message.messageId} type=$type data=${message.data}');
   if (type == 'NEW_ORDER_ALERT') {
-    debugPrint('[captain notif] NEW_ORDER_ALERT received (background) — showing CallKit alert');
-    await OrderAlertService.showIncomingOrderAlert(message.data);
-  } else if (type == 'ORDER_TAKEN') {
-    final orderId = message.data['orderId'];
-    if (orderId != null) {
-      await OrderAlertService.dismissIncomingOrderAlert(orderId);
-    }
+    debugPrint('[captain notif] NEW_ORDER_ALERT received (background) — showing notification');
+    await showNewOrderNotification(message.data);
   }
 }
