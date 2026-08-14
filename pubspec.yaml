@@ -75,7 +75,12 @@ dependencies:
   # Internationalization
   flutter_localizations:
     sdk: flutter
-  intl: 0.20.2
+  # Deliberately not pinned to an exact version: flutter_localizations pins
+  # intl exactly, and that pin differs between Flutter SDK versions (3.44
+  # wants 0.20.2, newer stables want 0.20.3+). An exact pin here therefore
+  # breaks CI whenever its `flutter: stable` is ahead of the local SDK. Any
+  # 0.20.x satisfies both.
+  intl: ^0.20.0
 
   # JSON serialization
   json_annotation: ^4.8.1
