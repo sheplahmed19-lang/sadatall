@@ -106,7 +106,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.shopping_cart_outlined,
               size: 80,
               color: AppColors.onSurfaceVariant,
@@ -208,7 +208,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.store,
                   size: 13,
                   color: AppColors.onSurfaceVariant,
@@ -230,7 +230,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.location_on,
                   size: 13,
                   color: AppColors.onSurfaceVariant,
@@ -239,7 +239,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                 Expanded(
                   child: Text(
                     '${order.neighborhood?.name ?? ''} - ${order.userAddress}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppColors.onSurfaceVariant,
                     ),
@@ -252,7 +252,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.access_time,
                   size: 13,
                   color: AppColors.onSurfaceVariant,
@@ -260,7 +260,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                 const SizedBox(width: 4),
                 Text(
                   AppUtils.timeAgo(order.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: AppColors.onSurfaceVariant,
                   ),
@@ -345,7 +345,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             width: 85,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
@@ -379,7 +379,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             width: 85,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
@@ -389,7 +389,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 11, color: AppColors.onSurface),
+              style: TextStyle(fontSize: 11, color: AppColors.onSurface),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),
@@ -409,7 +409,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             width: 85,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
@@ -419,7 +419,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
           Expanded(
             child: ClickablePhoneText(
               text: value,
-              style: const TextStyle(fontSize: 11, color: AppColors.onSurface),
+              style: TextStyle(fontSize: 11, color: AppColors.onSurface),
             ),
           ),
         ],
@@ -428,8 +428,11 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
   }
 
   void _acceptOrder(BuildContext context, OrderModel order) async {
-    // For special orders (vendorId == -1), show delivery price dialog
-    if (order.vendorId == '-1') {
+    // Special orders (vendorId == -1) normally need the captain to name a
+    // delivery price — but an admin can create one with the price already
+    // set, and then there is nothing for the captain to decide. Only ask
+    // when the order has no price yet.
+    if (order.vendorId == '-1' && order.deliveryPrice == null) {
       _showDeliveryPriceDialog(context, order);
       return;
     }
@@ -520,13 +523,13 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
               children: [
                 Text(
                   'طلب خاص #${order.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: AppColors.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'يجب تحديد سعر التوصيل للطلبات الخاصة',
                   style: TextStyle(
                     fontSize: 12,

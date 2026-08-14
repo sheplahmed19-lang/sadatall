@@ -417,7 +417,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     'جاري تحميل الأحياء...',
                                     style: const TextStyle(
                                       fontSize: 16,
-                                      color: Colors.black87,
                                     ),
                                   ),
                                 ),
@@ -444,7 +443,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'غير محدد',
                               style: const TextStyle(
                                 fontSize: 16,
-                                color: Colors.black87,
                               ),
                             ),
                           ),

@@ -68,7 +68,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'يمكنك إنشاء طلب للإدارة لأي استفسار أو مشكلة تواجهك. '
                         'سيتم مراجعة طلبك والرد عليك في أقرب وقت ممكن.',
                         style: TextStyle(

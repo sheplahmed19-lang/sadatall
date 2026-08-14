@@ -122,7 +122,14 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
             CustomButton(
               text: 'قبول الطلب',
               onPressed: isAccepting ? null : () {
-                _showDeliveryPriceDialog(context, widget.order);
+                // An admin can create a special order with the delivery price
+                // already set; asking the captain to name one would let them
+                // overwrite it. Only prompt when there is no price yet.
+                if (widget.order.deliveryPrice == null) {
+                  _showDeliveryPriceDialog(context, widget.order);
+                } else {
+                  _confirmAcceptWithExistingPrice(context, widget.order);
+                }
               },
               isLoading: isAccepting,
               icon: Icons.check_circle,
@@ -158,7 +165,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -167,7 +174,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),
@@ -187,7 +194,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -213,7 +220,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -222,7 +229,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
           Expanded(
             child: ClickablePhoneText(
               text: value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
             ),
           ),
         ],
@@ -243,6 +250,60 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
     }
   }
 
+  /// Confirmation for a special order whose delivery price the admin already
+  /// set: the price is shown, not asked for.
+  void _confirmAcceptWithExistingPrice(BuildContext context, OrderModel order) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد قبول الطلب'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'طلب خاص #${order.id}',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'سعر التوصيل: ${order.deliveryPrice} جنيه',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'تم تحديد سعر التوصيل من قبل الإدارة.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('إلغاء'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          TextButton(
+            child: const Text('قبول'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              // No price sent — the backend keeps the one already on the order.
+              _acceptOrder(order, null);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDeliveryPriceDialog(BuildContext context, OrderModel order) {
     final formKey = GlobalKey<FormState>();
     final priceController = TextEditingController();
@@ -261,7 +322,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
               children: [
                 Text(
                   'طلب خاص #${order.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: AppColors.onSurfaceVariant,
                   ),
@@ -319,7 +380,10 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
     );
   }
 
-  void _acceptOrder(OrderModel order, double deliveryPrice) async {
+  /// [deliveryPrice] is null when the order already carries a price set by the
+  /// admin — the captain was never asked, so nothing is sent and the backend
+  /// keeps the existing price.
+  void _acceptOrder(OrderModel order, double? deliveryPrice) async {
     final notifier = ref.read(availableOrdersProvider.notifier);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 

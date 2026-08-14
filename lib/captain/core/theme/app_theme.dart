@@ -19,7 +19,7 @@ class AppTheme {
     ),
 
     // Text theme
-    textTheme: const TextTheme(
+    textTheme: TextTheme(
       displayLarge: AppTextStyles.h1,
       displayMedium: AppTextStyles.h2,
       headlineLarge: AppTextStyles.h3,
@@ -46,7 +46,7 @@ class AppTheme {
     ),
 
     // Bottom navigation bar theme
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: AppColors.surface,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.onSurfaceVariant,
@@ -186,7 +186,7 @@ class AppTheme {
     ),
 
     // Bottom navigation bar theme
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: AppColors.darkSurface,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.darkOnSurfaceVariant,

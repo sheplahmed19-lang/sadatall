@@ -172,7 +172,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'تسجيل صوتي',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
@@ -199,7 +199,7 @@ class _AttachmentItemState extends State<_AttachmentItem> {
                   ),
                   Text(
                     '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: AppColors.onSurfaceVariant,
                     ),

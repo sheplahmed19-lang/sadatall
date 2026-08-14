@@ -320,7 +320,7 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
               fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
       Expanded(
           child: Text(value,
-              style: const TextStyle(fontSize: 14, color: Colors.black87)))
+              style: const TextStyle(fontSize: 14)))
     ]);
   }
 

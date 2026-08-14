@@ -46,8 +46,16 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
-    final bubbleColor = isMine ? accentColor : Colors.grey[200]!;
-    final textColor = isMine ? Colors.white : Colors.black87;
+    // The received bubble follows the theme so its text stays legible in dark
+    // mode; the sent bubble keeps the accent colour, which is dark enough for
+    // white text in both themes.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bubbleColor = isMine
+        ? accentColor
+        : (isDark ? const Color(0xFF2A2A2A) : Colors.grey[200]!);
+    final textColor = isMine
+        ? Colors.white
+        : (isDark ? Colors.white : Colors.black87);
 
     return Align(
       // Physical (not directional) alignment: the app is forced RTL, so

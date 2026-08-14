@@ -125,7 +125,7 @@ class _DeliveredOrdersScreenState extends ConsumerState<DeliveredOrdersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.history,
               size: 80,
               color: AppColors.onSurfaceVariant,
@@ -200,7 +200,7 @@ class _DeliveredOrdersScreenState extends ConsumerState<DeliveredOrdersScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.store,
                     size: 16,
                     color: AppColors.onSurfaceVariant,
@@ -221,7 +221,7 @@ class _DeliveredOrdersScreenState extends ConsumerState<DeliveredOrdersScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on,
                     size: 16,
                     color: AppColors.onSurfaceVariant,
@@ -274,7 +274,7 @@ class _DeliveredOrdersScreenState extends ConsumerState<DeliveredOrdersScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.note,
                       size: 16,
                       color: AppColors.onSurfaceVariant,

@@ -262,7 +262,6 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
           child: Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.black87,
             child: Stack(
               children: [
                 Center(

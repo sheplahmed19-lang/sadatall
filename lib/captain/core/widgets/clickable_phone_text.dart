@@ -26,7 +26,7 @@ class ClickablePhoneText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultStyle = style ?? const TextStyle(color: AppColors.onSurface);
+    final defaultStyle = style ?? TextStyle(color: AppColors.onSurface);
     final defaultPhoneStyle = phoneStyle ??
         const TextStyle(
           color: AppColors.primary,
@@ -143,7 +143,7 @@ class ClickablePhoneField extends StatelessWidget {
           child: IconButton(
             padding: EdgeInsets.zero,
             iconSize: 18,
-            icon: const Icon(Icons.copy, color: AppColors.onSurfaceVariant),
+            icon: Icon(Icons.copy, color: AppColors.onSurfaceVariant),
             onPressed: () => copyPhoneNumber(context, phoneNumber),
           ),
         ),

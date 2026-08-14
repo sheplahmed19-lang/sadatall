@@ -286,7 +286,7 @@ class _RequestsListScreenState extends ConsumerState<RequestsListScreen>
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.schedule,
                   size: 16,
                   color: AppColors.onSurfaceVariant,

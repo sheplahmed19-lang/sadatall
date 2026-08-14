@@ -268,7 +268,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -277,7 +277,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
             ),
           ),
         ],

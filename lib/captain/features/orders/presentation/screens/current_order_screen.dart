@@ -111,7 +111,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.inbox,
               size: 80,
               color: AppColors.onSurfaceVariant,
@@ -266,6 +266,20 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
                     height: 40,
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Calling the customer is the other thing a captain needs at
+                // this point, so it sits next to the delivery action rather
+                // than only being reachable from the phone row above.
+                CustomButton(
+                  text: 'اتصال',
+                  onPressed: isProcessing
+                      ? null
+                      : () => _callPhone(order.phoneNumber),
+                  backgroundColor: AppColors.primary,
+                  icon: Icons.phone,
+                  height: 40,
+                  width: 120,
+                ),
               ],
             ),
             if (order.user != null) ...[
@@ -368,7 +382,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -377,7 +391,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
             ),
           ),
         ],
@@ -395,7 +409,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -417,7 +431,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -426,7 +440,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
           Expanded(
             child: ClickablePhoneText(
               text: value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
             ),
           ),
         ],
@@ -465,6 +479,19 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
         return AppColors.success;
       case OrderStatus.cancelled:
         return AppColors.error;
+    }
+  }
+
+  void _callPhone(String phoneNumber) async {
+    final uri = Uri.parse('tel:$phoneNumber');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا يمكن فتح تطبيق الهاتف')),
+        );
+      }
     }
   }
 

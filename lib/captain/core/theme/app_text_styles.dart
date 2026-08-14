@@ -3,28 +3,28 @@ import 'app_colors.dart';
 
 class AppTextStyles {
   // Headline styles
-  static const TextStyle h1 = TextStyle(
+  static TextStyle get h1 => TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.bold,
     color: AppColors.onSurface,
     height: 1.2,
   );
   
-  static const TextStyle h2 = TextStyle(
+  static TextStyle get h2 => TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.bold,
     color: AppColors.onSurface,
     height: 1.2,
   );
   
-  static const TextStyle h3 = TextStyle(
+  static TextStyle get h3 => TextStyle(
     fontSize: 24,
     fontWeight: FontWeight.w600,
     color: AppColors.onSurface,
     height: 1.3,
   );
   
-  static const TextStyle h4 = TextStyle(
+  static TextStyle get h4 => TextStyle(
     fontSize: 20,
     fontWeight: FontWeight.w600,
     color: AppColors.onSurface,
@@ -32,21 +32,21 @@ class AppTextStyles {
   );
   
   // Body text styles
-  static const TextStyle bodyLarge = TextStyle(
+  static TextStyle get bodyLarge => TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.normal,
     color: AppColors.onSurface,
     height: 1.5,
   );
   
-  static const TextStyle bodyMedium = TextStyle(
+  static TextStyle get bodyMedium => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.normal,
     color: AppColors.onSurface,
     height: 1.4,
   );
   
-  static const TextStyle bodySmall = TextStyle(
+  static TextStyle get bodySmall => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: AppColors.onSurfaceVariant,
@@ -67,27 +67,27 @@ class AppTextStyles {
   );
   
   // Label styles
-  static const TextStyle label = TextStyle(
+  static TextStyle get label => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
   );
   
-  static const TextStyle labelSmall = TextStyle(
+  static TextStyle get labelSmall => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
     color: AppColors.onSurfaceVariant,
   );
   
   // Caption styles
-  static const TextStyle caption = TextStyle(
+  static TextStyle get caption => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: AppColors.onSurfaceVariant,
   );
   
   // Arabic text support
-  static const TextStyle arabicH1 = TextStyle(
+  static TextStyle get arabicH1 => TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.bold,
     color: AppColors.onSurface,
@@ -95,7 +95,7 @@ class AppTextStyles {
     fontFamily: 'Cairo',
   );
   
-  static const TextStyle arabicBody = TextStyle(
+  static TextStyle get arabicBody => TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.normal,
     color: AppColors.onSurface,

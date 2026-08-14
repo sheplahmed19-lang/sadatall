@@ -168,7 +168,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -177,7 +177,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),
@@ -197,7 +197,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -219,7 +219,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -228,7 +228,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
           Expanded(
             child: ClickablePhoneText(
               text: value,
-              style: const TextStyle(color: AppColors.onSurface),
+              style: TextStyle(color: AppColors.onSurface),
             ),
           ),
         ],

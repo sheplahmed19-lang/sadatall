@@ -31,8 +31,30 @@ class AppColors {
   // Text colors
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color onSecondary = Color(0xFFFFFFFF);
-  static const Color onSurface = Color(0xFF1A1A1A);
-  static const Color onSurfaceVariant = Color(0xFF757575);
+
+  // Text-on-surface colours are resolved per theme rather than being const:
+  // they are referenced directly in ~90 places (often inside `const` widget
+  // trees with no BuildContext to hand), so a fixed dark value left every one
+  // of them near-black on the dark background. Resolving them here keeps all
+  // those call sites working unchanged while still flipping with the theme.
+  //
+  // The flag is set by ThemeModeNotifier rather than read from the device
+  // brightness, so it follows the app's own dark-mode toggle — the same
+  // source of truth MaterialApp uses to pick light/dark ThemeData. Reading
+  // the platform brightness instead would disagree with the toggle whenever
+  // the two differ, leaving this text dark on a dark background.
+  static bool isDarkMode = false;
+
+  static Color get onSurface =>
+      isDarkMode ? darkOnSurface : const Color(0xFF1A1A1A);
+  static Color get onSurfaceVariant =>
+      isDarkMode ? darkOnSurfaceVariant : const Color(0xFF757575);
+
+  // Surfaces follow the same flag, so cards/among containers that reference
+  // these directly do not stay white behind the now-light text.
+  static Color get themedSurface => isDarkMode ? darkSurface : surface;
+  static Color get themedBackground =>
+      isDarkMode ? darkBackground : background;
 
   // Border colors
   static const Color outline = Color(0xFFCCECE9);

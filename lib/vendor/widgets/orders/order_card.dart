@@ -41,7 +41,6 @@ class OrderCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                     ),
                     _buildStatusChip(order.status),
@@ -108,7 +107,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   child: Text(
                     order.description,
-                    style: const TextStyle(fontSize: 14, color: Colors.black87),
+                    style: const TextStyle(fontSize: 14),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
