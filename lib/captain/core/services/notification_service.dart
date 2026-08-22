@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,9 @@ import 'package:sadat_delivery_merged/main.dart' show rootProviderContainer, nav
 import 'package:sadat_delivery_merged/captain/main_navigation.dart'
     show switchToCurrentOrderTab, switchToAvailableOrdersTab;
 import 'package:sadat_delivery_merged/captain/features/chat/captain_support_chat_screen.dart';
+import 'package:sadat_delivery_merged/captain/features/chat/captain_order_chat_screen.dart';
+import 'package:sadat_delivery_merged/captain/features/orders/data/models/order_model.dart';
+import 'package:sadat_delivery_merged/captain/features/orders/data/services/orders_service.dart';
 import '../errors/app_exceptions.dart';
 import '../network/api_client.dart';
 
@@ -39,16 +43,7 @@ void _handleCaptainOrderNotification(Map<String, dynamic> data) {
   if (type == null) return;
 
   if (type == 'chat_message') {
-    final chatId = data['chatId'] as String?;
-    if (chatId != null && chatId.startsWith('support_captain_')) {
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => const CaptainSupportChatScreen()),
-      );
-      return;
-    }
-    // Order-scoped chat (user or vendor side) — the chat entry buttons live
-    // on the current-order screen, so route there.
-    rootProviderContainer.read(switchToCurrentOrderTab)?.call();
+    _openCaptainChatFromNotification(data);
     return;
   }
 
@@ -56,6 +51,127 @@ void _handleCaptainOrderNotification(Map<String, dynamic> data) {
     rootProviderContainer.read(switchToAvailableOrdersTab)?.call();
   } else if (_kCurrentOrderTypes.contains(type)) {
     rootProviderContainer.read(switchToCurrentOrderTab)?.call();
+  }
+}
+
+/// Reads back a local notification's payload. Payloads are JSON-encoded copies
+/// of the FCM data map; older builds wrote just the bare type string, so fall
+/// back to treating an undecodable payload as the type.
+Map<String, dynamic> _decodeNotificationPayload(String payload) {
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is Map<String, dynamic>) return decoded;
+  } catch (_) {
+    // Not JSON — handled below.
+  }
+  return {'type': payload};
+}
+
+/// Opens the chat a `chat_message` notification refers to, rather than just
+/// dropping the captain on the tab that holds the chat buttons.
+///
+/// Support chats open directly. Order-scoped chats need the order first (for
+/// the counterpart's id and name), so they go through a loading screen that
+/// mirrors the user/vendor apps' fetch-then-navigate pattern.
+void _openCaptainChatFromNotification(Map<String, dynamic> data) {
+  final navState = navigatorKey.currentState;
+  final chatId = data['chatId'] as String?;
+
+  if (chatId != null && chatId.startsWith('support_captain_')) {
+    navState?.push(
+      MaterialPageRoute(builder: (_) => const CaptainSupportChatScreen()),
+    );
+    return;
+  }
+
+  // Backend format: order_{orderId}_{user|vendor}_captain — the suffix tells
+  // us which side of the order is messaging.
+  final orderId = data['orderId'] as String?;
+  if (navState != null &&
+      chatId != null &&
+      orderId != null &&
+      orderId.isNotEmpty &&
+      chatId.endsWith('_captain')) {
+    final isVendor = chatId.endsWith('_vendor_captain');
+    navState.push(
+      MaterialPageRoute(
+        builder: (_) => _CaptainOrderChatLoadingScreen(
+          orderId: orderId,
+          isVendor: isVendor,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // Not enough to open a specific thread — fall back to the tab that holds
+  // the chat entry buttons.
+  rootProviderContainer.read(switchToCurrentOrderTab)?.call();
+}
+
+/// Loads the captain's current order so the order chat can be opened with the
+/// counterpart's id and name, then replaces itself with the chat.
+class _CaptainOrderChatLoadingScreen extends StatefulWidget {
+  final String orderId;
+  final bool isVendor;
+
+  const _CaptainOrderChatLoadingScreen({
+    required this.orderId,
+    required this.isVendor,
+  });
+
+  @override
+  State<_CaptainOrderChatLoadingScreen> createState() =>
+      _CaptainOrderChatLoadingScreenState();
+}
+
+class _CaptainOrderChatLoadingScreenState
+    extends State<_CaptainOrderChatLoadingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    OrderModel? order;
+    try {
+      order = await OrdersService().getCurrentOrder();
+    } catch (_) {
+      // Fall through to the tab fallback below.
+    }
+    if (!mounted) return;
+
+    // An order chat only exists for the order the captain is currently on, so
+    // a mismatch means the notification is for an order they've moved past.
+    final otherId = widget.isVendor ? order?.vendor?.id : order?.user?.id;
+    final otherName =
+        widget.isVendor ? order?.vendor?.vendorName : order?.user?.userName;
+
+    if (order != null &&
+        order.id == widget.orderId &&
+        otherId != null &&
+        otherName != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => CaptainOrderChatScreen(
+            orderId: widget.orderId,
+            otherId: otherId,
+            otherName: otherName,
+            isVendor: widget.isVendor,
+            orderStatus: order!.status.value,
+          ),
+        ),
+      );
+    } else {
+      Navigator.of(context).pop();
+      rootProviderContainer.read(switchToCurrentOrderTab)?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -115,7 +231,7 @@ class NotificationService {
           }
 
           if (payload != null) {
-            _handleCaptainOrderNotification({'type': payload});
+            _handleCaptainOrderNotification(_decodeNotificationPayload(payload));
           }
         },
       );
@@ -223,7 +339,9 @@ class NotificationService {
         notification.title,
         notification.body,
         platformDetails,
-        payload: message.data['type'], // pass type for navigation
+        // Carry the whole data map, not just the type: chat notifications
+        // need chatId/orderId to open the specific thread on tap.
+        payload: jsonEncode(message.data),
       );
     }
 
@@ -373,7 +491,7 @@ Future<void> showNewOrderNotification(Map<String, dynamic> data) async {
     'طلب توصيل جديد',
     body.isNotEmpty ? body : 'اضغط لعرض التفاصيل',
     details,
-    payload: (data['orderType'] ?? data['type'])?.toString(),
+    payload: jsonEncode(data),
   );
 }
 

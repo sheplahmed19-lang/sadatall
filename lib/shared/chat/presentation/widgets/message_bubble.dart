@@ -30,17 +30,21 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.type == MessageType.system) {
+      // The received/sent bubbles below already switch on brightness, but this
+      // system pill kept fixed light-grey values, so in dark mode it stayed a
+      // pale chip with near-black text floating on a dark background.
+      final scheme = Theme.of(context).colorScheme;
       return Center(
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.grey[300],
+            color: scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             message.text ?? '',
-            style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
         ),
       );

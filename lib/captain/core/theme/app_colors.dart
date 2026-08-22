@@ -47,8 +47,12 @@ class AppColors {
 
   static Color get onSurface =>
       isDarkMode ? darkOnSurface : const Color(0xFF1A1A1A);
+  // Darkened from #757575 (~4.6:1 on white) to #4A4A4A (~9:1). Captains read
+  // these labels outdoors on a phone at partial brightness, where mid-grey
+  // washes out against glare; the darker value stays comfortably legible in
+  // direct sun without changing the visual hierarchy.
   static Color get onSurfaceVariant =>
-      isDarkMode ? darkOnSurfaceVariant : const Color(0xFF757575);
+      isDarkMode ? darkOnSurfaceVariant : const Color(0xFF4A4A4A);
 
   // Surfaces follow the same flag, so cards/among containers that reference
   // these directly do not stay white behind the now-light text.

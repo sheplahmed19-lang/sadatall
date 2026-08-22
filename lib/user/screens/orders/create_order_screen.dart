@@ -116,6 +116,42 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     super.dispose();
   }
 
+  /// Empties the whole cart after confirmation, and clears the description
+  /// that was generated from it so the order text stays in sync.
+  Future<void> _confirmClearCart() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إفراغ السلة'),
+        content: const Text('هل تريد حذف كل العناصر من السلة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: const Text('حذف الكل'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    _cartService.clearCart();
+    setState(() {
+      _descriptionController.text = '';
+    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم إفراغ السلة')));
+  }
+
   Future<void> _fetchDeliveryPrice(String neighborhoodId) async {
     if (!widget.isCheckout || widget.vendor == null) {
       return;
@@ -882,6 +918,23 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                                 color: AppTheme.primaryColor,
                               ),
                             ),
+                            const Spacer(),
+                            if (_cartService.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: _confirmClearCart,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppTheme.errorColor,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                ),
+                                label: const Text('إفراغ السلة'),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 12),

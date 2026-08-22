@@ -123,9 +123,9 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!)),
+                      border: Border.all(color: Theme.of(context).dividerColor)),
                   child: Text(widget.order.description,
                       style: const TextStyle(fontSize: 14, height: 1.4))),
 

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/time_utils.dart';
@@ -13,17 +15,21 @@ class AppInitializationService {
     apiService.initialize();
 
     try {
-      await BaseUrlService.initializeBaseUrl()
-          .timeout(const Duration(seconds: 10), onTimeout: () {});
+      await BaseUrlService.initializeBaseUrl().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {},
+      );
+      debugPrint('BaseUrlService: Initialization completed.');
       if (BaseUrlService.isInitialized) {
         apiService.updateBaseUrl(BaseUrlService.baseUrl);
       }
     } catch (_) {}
 
     try {
-      await NotificationService()
-          .initialize()
-          .timeout(const Duration(seconds: 10), onTimeout: () {});
+      await NotificationService().initialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {},
+      );
     } catch (_) {}
   }
 }

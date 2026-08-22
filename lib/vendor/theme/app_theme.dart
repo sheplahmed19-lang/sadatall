@@ -45,7 +45,7 @@ class AppTheme {
       outlinedButtonTheme: _getOutlinedButtonTheme(),
       textButtonTheme: _getTextButtonTheme(),
       inputDecorationTheme: _getInputDecorationTheme(),
-      // cardTheme: _getCardTheme(),
+      cardTheme: _getCardTheme(),
       dividerTheme: _getDividerTheme(),
       scaffoldBackgroundColor: surfaceColor,
       visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -81,6 +81,12 @@ class AppTheme {
         border: darkBorderColor,
         labelColor: darkTextSecondary,
         hintColor: darkTextDisabled,
+      ),
+      // Without this, Card falls back to a light default and every card
+      // renders white behind light text in dark mode.
+      cardTheme: _getCardTheme(
+        color: darkSurfaceColor,
+        shadowColor: Colors.black54,
       ),
       dividerTheme: _getDividerTheme(darkDividerColor),
       scaffoldBackgroundColor: darkBackgroundColor,
@@ -282,10 +288,19 @@ class AppTheme {
     );
   }
 
-  static CardTheme _getCardTheme() {
-    return CardTheme(
-      color: backgroundColor,
-      shadowColor: Colors.black12,
+  /// Card surface for one brightness.
+  ///
+  /// Previously hardcoded the light `backgroundColor`, which is why it was
+  /// commented out of the light theme and never wired into the dark one —
+  /// leaving Card on a near-white default, so cards stayed white behind
+  /// light text in dark mode.
+  static CardThemeData _getCardTheme({
+    Color color = backgroundColor,
+    Color shadowColor = Colors.black12,
+  }) {
+    return CardThemeData(
+      color: color,
+      shadowColor: shadowColor,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

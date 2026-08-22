@@ -38,12 +38,23 @@ class _ComposerBarState extends State<ComposerBar> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Colors.grey[100] is a near-white constant: in dark mode the field kept
+    // that pale fill while the text colour flipped to light, leaving white
+    // text on a white box. Drive both off the scheme instead so they always
+    // move together.
+    final fieldFill = scheme.surfaceContainerHighest;
+    final fieldText = scheme.onSurface;
+
     if (!widget.enabled) {
       return Container(
         padding: const EdgeInsets.all(12),
-        color: Colors.grey[100],
-        child: const Center(
-          child: Text('انتهت المحادثة — لا يمكن إرسال رسائل جديدة', style: TextStyle(color: Colors.grey)),
+        color: fieldFill,
+        child: Center(
+          child: Text(
+            'انتهت المحادثة — لا يمكن إرسال رسائل جديدة',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
         ),
       );
     }
@@ -64,10 +75,14 @@ class _ComposerBarState extends State<ComposerBar> {
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _submit(),
+                // Explicit text colour: without it the field inherits a style
+                // that can end up matching the fill in dark mode.
+                style: TextStyle(color: fieldText),
                 decoration: InputDecoration(
                   hintText: 'اكتب رسالة...',
+                  hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                   filled: true,
-                  fillColor: Colors.grey[100],
+                  fillColor: fieldFill,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                 ),

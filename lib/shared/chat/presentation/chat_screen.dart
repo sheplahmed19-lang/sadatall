@@ -60,6 +60,20 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _error;
   bool _markedReadForCurrentUnread = false;
 
+  /// Created once per opened thread, never inside build(). Each
+  /// streamMessages() call opens its own StreamController (joining the chat
+  /// room, loading cache, fetching history), so building it inline would tear
+  /// the live stream down and restart it on every rebuild — the new stream
+  /// starts with no data, so a just-sent message would disappear behind a
+  /// spinner until the reload came back. Rebuilds are frequent here: sending
+  /// causes one, and a screen using context.watch on its auth provider
+  /// rebuilds on every notifyListeners too.
+  Stream<List<ChatMessage>>? _messages;
+
+  /// Last list the stream produced, kept so a rebuild arriving before the
+  /// next emit re-renders the same messages instead of a spinner.
+  List<ChatMessage>? _lastMessages;
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +83,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _load() async {
     try {
       final thread = await widget.openThread();
-      if (mounted) setState(() => _thread = thread);
+      if (mounted) {
+        setState(() {
+          _thread = thread;
+          _messages = _repo.streamMessages(thread.id);
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = 'تعذر فتح المحادثة');
     }
@@ -224,10 +243,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           Expanded(
             child: StreamBuilder<List<ChatMessage>>(
-              stream: _repo.streamMessages(_thread!.id),
+              stream: _messages,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final messages = snapshot.data!;
+                // Hold the last rendered list rather than falling back to a
+                // spinner: a rebuild before the stream's first emit must
+                // never blank out messages that are already on screen.
+                if (snapshot.hasData) _lastMessages = snapshot.data!;
+                final messages = _lastMessages;
+                if (messages == null) return const Center(child: CircularProgressIndicator());
                 WidgetsBinding.instance.addPostFrameCallback((_) => _markReadIfNeeded(messages));
                 if (messages.isEmpty) {
                   return const Center(child: Text('ابدأ المحادثة الآن', style: TextStyle(color: Colors.grey)));

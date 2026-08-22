@@ -253,13 +253,34 @@ class Order {
 
   // Text summary of the delivery route: from the vendor's neighborhood/address
   // to the order's destination neighborhood. Only meaningful when the order
-  // has a real vendor (not a special order, vendorId == -1).
+  // has a real vendor (not a special order, vendorId == -1) and actually goes
+  // somewhere — see [_isSameLocationDelivery].
   String? get routeLabel {
     if (vendorId == -1 || vendor == null) return null;
+    if (_isSameLocationDelivery) return null;
     final vendorLocation = vendor!.neighborhoodName ?? vendor!.address;
     final destination = neighborhood?.name;
     if (destination == null) return null;
     return 'من $vendorLocation إلى $destination';
+  }
+
+  /// True when the order is delivered to the vendor's own location — a vendor
+  /// ordering supplies for their own shop ("طلب شخصي للمتجر"), which sets the
+  /// destination from the vendor's own profile.
+  ///
+  /// Nothing on the order marks it as a shop order (the flag never leaves the
+  /// create-order screen), but it doesn't need to: "delivered where it
+  /// started" is the same fact, already present in the data. Rendering it as
+  /// a route produced a meaningless "من المعادي إلى المعادي".
+  ///
+  /// This model's Vendor carries only the neighborhood name, not its id, so
+  /// the comparison is by name here (the captain app compares ids).
+  bool get _isSameLocationDelivery {
+    final vendorNeighborhood = vendor?.neighborhoodName;
+    final destination = neighborhood?.name;
+    return vendorNeighborhood != null &&
+        destination != null &&
+        vendorNeighborhood == destination;
   }
 }
 

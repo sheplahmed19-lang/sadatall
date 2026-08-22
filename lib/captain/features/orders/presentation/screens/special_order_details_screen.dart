@@ -140,20 +140,7 @@ class _SpecialOrderDetailsScreenState extends ConsumerState<SpecialOrderDetailsS
     );
   }
 
-  String _displayCustomerName() {
-    // For send-package orders, the sender's name (which may differ from the
-    // account owner) is embedded in additionalNotes as "الاسم: <name>".
-    // Prefer that when present; fall back to the account's registered name.
-    final notes = widget.order.additionalNotes;
-    if (notes != null) {
-      final match = RegExp(r'الاسم:\s*(.+)').firstMatch(notes);
-      final senderName = match?.group(1)?.trim();
-      if (senderName != null && senderName.isNotEmpty) {
-        return senderName;
-      }
-    }
-    return widget.order.user?.userName ?? 'غير محدد';
-  }
+  String _displayCustomerName() => widget.order.displayCustomerName;
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(

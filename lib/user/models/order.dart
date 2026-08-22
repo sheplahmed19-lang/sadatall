@@ -13,6 +13,10 @@ class Order {
   final String userAddress;
   final String phoneNumber;
   final int neighborhoodId;
+
+  /// Minutes the vendor said it needs before the order is ready for pickup,
+  /// set when the vendor accepts the order or sends a counter offer.
+  final int? waitingTime;
   final bool isRated; // Added isRated field
   final User? user;
   final Vendor? vendor;
@@ -35,6 +39,7 @@ class Order {
     required this.userAddress,
     required this.phoneNumber,
     required this.neighborhoodId,
+    this.waitingTime,
     required this.isRated, // Added isRated field
     this.user,
     this.vendor,
@@ -73,6 +78,9 @@ class Order {
       neighborhoodId: json['neighborhoodId'] is num
           ? (json['neighborhoodId'] as num).toInt()
           : int.tryParse(json['neighborhoodId']?.toString() ?? '0') ?? 0,
+      waitingTime: json['waitingTime'] is num
+          ? (json['waitingTime'] as num).toInt()
+          : int.tryParse(json['waitingTime']?.toString() ?? ''),
       isRated: json['isRated'] as bool? ?? false, // Added isRated field
       user: json['user'] != null
           ? User.fromJson(json['user'] as Map<String, dynamic>)
@@ -117,6 +125,7 @@ class Order {
       'userAddress': userAddress,
       'phoneNumber': phoneNumber,
       'neighborhoodId': neighborhoodId,
+      'waitingTime': waitingTime,
       'isRated': isRated, // Added isRated field
       'user': user?.toJson(),
       'vendor': vendor?.toJson(),
@@ -141,6 +150,7 @@ class Order {
     String? userAddress,
     String? phoneNumber,
     int? neighborhoodId,
+    int? waitingTime,
     bool? isRated, // Added isRated field
     User? user,
     Vendor? vendor,
@@ -163,6 +173,7 @@ class Order {
       userAddress: userAddress ?? this.userAddress,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       neighborhoodId: neighborhoodId ?? this.neighborhoodId,
+      waitingTime: waitingTime ?? this.waitingTime,
       isRated: isRated ?? this.isRated, // Added isRated field
       user: user ?? this.user,
       vendor: vendor ?? this.vendor,

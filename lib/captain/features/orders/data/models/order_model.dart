@@ -76,13 +76,58 @@ class OrderModel {
 
   // Text summary of the delivery route: from the vendor's neighborhood/address
   // to the order's destination neighborhood. Only meaningful when the order
-  // has a real vendor (not a special order, vendorId == '-1').
+  // has a real vendor (not a special order, vendorId == '-1') and actually
+  // goes somewhere — see [_isSameLocationDelivery].
   String? get routeLabel {
     if (vendorId == '-1' || vendor == null) return null;
+    if (_isSameLocationDelivery) return null;
     final vendorLocation = vendor!.neighborhood?.name ?? vendor!.address;
     final destination = neighborhood?.name;
     if (destination == null) return null;
     return 'من $vendorLocation إلى $destination';
+  }
+
+  /// True when the order is delivered to the vendor's own location — a vendor
+  /// ordering supplies for their own shop ("طلب شخصي للمتجر"), which sets the
+  /// destination from the vendor's own profile.
+  ///
+  /// Nothing on the order marks it as a shop order (the flag never leaves the
+  /// vendor app), but it doesn't need to: "delivered where it started" is the
+  /// same fact, already present in the data. Rendering it as a route produced
+  /// a meaningless "من المعادي إلى المعادي".
+  ///
+  /// Compares neighborhood ids when both are known, since two distinct
+  /// neighborhoods can share a display name; falls back to names otherwise.
+  bool get _isSameLocationDelivery {
+    final vendorNeighborhoodId = vendor?.neighborhood?.id;
+    final destinationId = neighborhood?.id;
+    if (vendorNeighborhoodId != null && destinationId != null) {
+      return vendorNeighborhoodId == destinationId;
+    }
+
+    final vendorName = vendor?.neighborhood?.name;
+    final destinationName = neighborhood?.name;
+    return vendorName != null &&
+        destinationName != null &&
+        vendorName == destinationName;
+  }
+
+  /// Name to show the captain for whoever receives this order.
+  ///
+  /// "Send package" orders are placed by one account on someone else's behalf
+  /// and carry the real recipient in the notes as "الاسم: ...", so that wins
+  /// over the account name — otherwise the captain would call the sender
+  /// instead of the person waiting for the delivery.
+  String get displayCustomerName {
+    final notes = additionalNotes;
+    if (notes != null) {
+      final match = RegExp(r'الاسم:\s*(.+)').firstMatch(notes);
+      final senderName = match?.group(1)?.trim();
+      if (senderName != null && senderName.isNotEmpty) {
+        return senderName;
+      }
+    }
+    return user?.userName ?? 'غير محدد';
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) =>

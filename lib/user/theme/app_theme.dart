@@ -50,7 +50,7 @@ class AppTheme {
       outlinedButtonTheme: _getOutlinedButtonTheme(),
       textButtonTheme: _getTextButtonTheme(),
       inputDecorationTheme: _getInputDecorationTheme(),
-      // cardTheme: _getCardTheme(),
+      cardTheme: _getCardTheme(),
       dividerTheme: _getDividerTheme(),
       scaffoldBackgroundColor: surfaceColor,
       visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -87,6 +87,12 @@ class AppTheme {
         border: darkBorderColor,
         labelColor: darkTextSecondary,
         hintColor: darkTextDisabled,
+      ),
+      // Without this, Card falls back to a light default and every order /
+      // details card renders white behind light text in dark mode.
+      cardTheme: _getCardTheme(
+        color: darkSurfaceColor,
+        shadowColor: Colors.black54,
       ),
       dividerTheme: _getDividerTheme(darkDividerColor),
       scaffoldBackgroundColor: darkBackgroundColor,
@@ -262,10 +268,19 @@ class AppTheme {
     );
   }
 
-  static CardTheme _getCardTheme() {
-    return CardTheme(
-      color: backgroundColor,
-      shadowColor: Colors.black12,
+  /// Card surface for one brightness.
+  ///
+  /// This used to hardcode the light `backgroundColor`, which is why it was
+  /// commented out of the light theme and never wired into the dark one —
+  /// leaving Card to fall back to a near-white default in dark mode, so every
+  /// order card and details card stayed white while its text turned light.
+  static CardThemeData _getCardTheme({
+    Color color = backgroundColor,
+    Color shadowColor = Colors.black12,
+  }) {
+    return CardThemeData(
+      color: color,
+      shadowColor: shadowColor,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.all(8),

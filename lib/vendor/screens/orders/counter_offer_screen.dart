@@ -24,6 +24,13 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
   final OrderService _orderService = OrderService();
   bool _isLoading = false;
 
+  /// How long the vendor needs before the order is ready for pickup. Shown to
+  /// the captain as "الوقت التقديري" on the available/current order screens so
+  /// they know whether to head over now or take another job first.
+  int? _selectedWaitingTime;
+
+  static const List<int> _waitingTimeOptions = [5, 10, 15, 20, 25, 30, 60];
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +65,13 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
     if (initialPrice != null && initialPrice > 0) {
       _priceController.text = initialPrice.toStringAsFixed(2);
     }
+
+    // Carry over a waiting time the order already has, but only if it is one
+    // of the offered values — the dropdown asserts its value is in `items`.
+    final existing = widget.order.waitingTime;
+    if (existing != null && _waitingTimeOptions.contains(existing)) {
+      _selectedWaitingTime = existing;
+    }
   }
 
   Future<void> _sendCounterOffer() async {
@@ -77,6 +91,7 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
         description: description,
         price: price,
         additionalNotes: notes.isNotEmpty ? notes : null,
+        waitingTime: _selectedWaitingTime,
       );
 
       if (response.success && response.data != null) {
@@ -120,7 +135,9 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      // No explicit background: grey[50] forced a near-white page even in dark
+      // mode, so every theme-coloured (light) label on this screen ended up
+      // invisible. Letting the theme supply it fixes the whole screen at once.
       appBar: AppBar(
         title: const Text(
           'عرض',
@@ -198,9 +215,12 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                // Was grey[100]/grey[300]: a fixed light panel that in dark
+                // mode held theme-coloured (light) text, making the
+                // description unreadable.
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: ClickablePhoneText(
                 text: widget.order.description,
@@ -220,9 +240,14 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
+                  // Keep the orange accent, but as a translucent tint over
+                  // whatever surface is behind it rather than a solid
+                  // orange[50] that only works on a light background.
+                  color: Colors.orange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[200]!),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.45),
+                  ),
                 ),
                 child: ClickablePhoneText(
                   text: widget.order.additionalNotes!,
@@ -345,26 +370,72 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
 
             const SizedBox(height: 16),
 
-            // Info box
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
+            // How long until the order is ready for pickup. The backend
+            // already stored waitingTime on a counter offer and all three
+            // captain order screens render it as "الوقت التقديري" — only this
+            // form never asked for it, so it always arrived null.
+            DropdownButtonFormField<int>(
+              initialValue: _selectedWaitingTime,
+              decoration: InputDecoration(
+                labelText: 'مدة تجهيز الطلب (اختياري)',
+                labelStyle: const TextStyle(color: Colors.grey),
+                hintText: 'كم دقيقة حتى يصبح الطلب جاهزاً؟',
+                prefixIcon: Icon(
+                  Icons.timer_outlined,
+                  color: Colors.purple[700],
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.purple[700]!, width: 2),
+                ),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.info, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'سيتم إرسال عرضك للعميل وانتظار موافقته عليه.',
-                      style: TextStyle(fontSize: 14, color: Colors.blue[700]),
+              items: _waitingTimeOptions
+                  .map(
+                    (minutes) => DropdownMenuItem(
+                      value: minutes,
+                      child: Text('$minutes دقيقة'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedWaitingTime = v),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Info box
+            Builder(
+              builder: (context) {
+                // blue[700] text on a solid blue[50] panel is a light-mode-only
+                // pairing. A translucent tint plus a brightness-aware ink keeps
+                // the same "informational blue" reading in both themes.
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final infoInk = isDark ? Colors.blue[200]! : Colors.blue[700]!;
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: isDark ? 0.18 : 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.45),
                     ),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: infoInk, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'سيتم إرسال عرضك للعميل وانتظار موافقته عليه.',
+                          style: TextStyle(fontSize: 14, color: infoInk),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -426,8 +497,10 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
           child: OutlinedButton(
             onPressed: _isLoading ? null : () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.grey[700],
-              side: BorderSide(color: Colors.grey[300]!),
+              // grey[700] label + grey[300] border is a light-mode pairing:
+              // both washed out against the dark surface.
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              side: BorderSide(color: Theme.of(context).dividerColor),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -487,12 +560,7 @@ class _CounterOfferScreenState extends State<CounterOfferScreen> {
             color: Colors.grey,
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
       ],
     );
   }

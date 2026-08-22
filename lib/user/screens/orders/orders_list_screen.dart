@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/order.dart';
 import '../../services/user_order_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/auth_gate.dart';
 import '../../widgets/orders/order_card.dart';
 import 'create_order_screen.dart';
 import 'order_details_screen.dart';
@@ -159,6 +160,25 @@ class _OrdersListScreenState extends State<OrdersListScreen>
     }
   }
 
+  /// Opens the custom-order form, asking a guest to sign in first.
+  Future<void> _navigateToCustomOrder() async {
+    final loggedIn = await AuthGate.ensureLoggedIn(
+      context,
+      actionLabel: 'لإنشاء طلب خاص',
+    );
+    if (!loggedIn || !mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const CreateOrderScreen(isCustomOrder: true),
+      ),
+    );
+
+    if (mounted) {
+      await _refreshOrders();
+    }
+  }
+
   Future<void> _refreshOrders() async {
     // Clear cached data for all tabs to force reload
     setState(() {
@@ -256,15 +276,7 @@ class _OrdersListScreenState extends State<OrdersListScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'orders_create_order_fab',
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const CreateOrderScreen(
-                isCustomOrder: true,
-              ),
-            ),
-          ).then((_) => _refreshOrders());
-        },
+        onPressed: _navigateToCustomOrder,
         backgroundColor: AppTheme.primaryColor,
         icon: const Icon(Icons.add),
         label: const Text('طلب جديد'),
@@ -340,15 +352,7 @@ class _OrdersListScreenState extends State<OrdersListScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const CreateOrderScreen(
-                      isCustomOrder: true,
-                    ),
-                  ),
-                ).then((_) => _refreshOrders());
-              },
+              onPressed: _navigateToCustomOrder,
               icon: const Icon(Icons.add),
               label: const Text('إنشاء طلب جديد'),
               style: ElevatedButton.styleFrom(

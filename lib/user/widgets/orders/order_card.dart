@@ -21,11 +21,14 @@ class OrderCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: Card(
         elevation: 3,
-        shadowColor: Colors.black12,
-        color: const Color(0xFFFFE0B2), // Light orange (Amber 100)
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shadowColor: const Color.fromARGB(31, 127, 6, 6),
+        color: const Color.fromARGB(
+          255,
+          127,
+          194,
+          13,
+        ), // Light orange (Amber 100)
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
@@ -77,9 +80,9 @@ class OrderCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        order.vendorId == -1 
-                          ? 'طلب مخصص' 
-                          : (order.vendor?.vendorName ?? 'متجر غير محدد'),
+                        order.vendorId == -1
+                            ? 'طلب مخصص'
+                            : (order.vendor?.vendorName ?? 'متجر غير محدد'),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -107,14 +110,14 @@ class OrderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     order.description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(fontSize: 14),
                     maxLines: 20,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -161,7 +164,9 @@ class OrderCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (order.price > 0 || order.deliveryPrice != null) ...[
-                          if (order.price > 0 && (order.deliveryPrice != null && order.deliveryPrice! > 0)) ...[
+                          if (order.price > 0 &&
+                              (order.deliveryPrice != null &&
+                                  order.deliveryPrice! > 0)) ...[
                             // Show total price when both are strictly > 0
                             Text(
                               'الإجمالي: ${order.totalPrice!.toStringAsFixed(2)} ج.م',
@@ -228,10 +233,7 @@ class OrderCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'و ${order.orderItems!.length - 2} عناصر أخرى...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ],
@@ -253,7 +255,8 @@ class OrderCard extends StatelessWidget {
         textColor = Colors.blue[800]!;
         break;
       case OrderStatus.counterOfferAccepted:
-        backgroundColor = Colors.green[100]!; // Light green for accepted counter offer
+        backgroundColor =
+            Colors.green[100]!; // Light green for accepted counter offer
         textColor = Colors.green[800]!;
         break;
       case OrderStatus.acceptedByCaptain:
@@ -325,19 +328,14 @@ class OrderCard extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
-      label: Text(
-        text,
-        style: const TextStyle(fontSize: 12),
-      ),
+      label: Text(text, style: const TextStyle(fontSize: 12)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
@@ -364,10 +362,7 @@ class OrderCard extends StatelessWidget {
           ),
           Text(
             '${item.price.toStringAsFixed(2)} ج.م',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ],
       ),

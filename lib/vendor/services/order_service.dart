@@ -1,4 +1,5 @@
 import '../models/order.dart';
+import '../models/attachment.dart';
 import '../constants/app_constants.dart';
 import 'api_service.dart';
 import 'auth_service.dart';
@@ -127,6 +128,7 @@ class OrderService {
     required int neighborhoodId,
     double? price,
     int? waitingTime,
+    List<Attachment>? attachments,
   }) async {
     try {
       final token = await _authService.getAccessToken();
@@ -137,7 +139,7 @@ class OrderService {
         );
       }
 
-      final requestData = {
+      final requestData = <String, dynamic>{
         'description': description,
         'userAddress': userAddress,
         'phoneNumber': phoneNumber,
@@ -154,6 +156,13 @@ class OrderService {
 
       if (waitingTime != null) {
         requestData['waitingTime'] = waitingTime;
+      }
+
+      // Files are already in Wasabi by this point (AttachmentListWidget
+      // uploads on pick), so only the object keys travel here.
+      if (attachments != null && attachments.isNotEmpty) {
+        requestData['attachments'] =
+            attachments.map((a) => a.toJson()).toList();
       }
 
       if (kDebugMode) {}
@@ -204,6 +213,7 @@ class OrderService {
     required String description,
     String? additionalNotes,
     required double price,
+    int? waitingTime,
   }) async {
     try {
       final token = await _authService.getAccessToken();
@@ -214,13 +224,19 @@ class OrderService {
         );
       }
 
-      final requestData = {
+      final requestData = <String, dynamic>{
         'description': description,
         'price': price,
       };
 
       if (additionalNotes != null && additionalNotes.isNotEmpty) {
         requestData['additionalNotes'] = additionalNotes;
+      }
+
+      // Persisted by the backend's vendorCounterOffer and surfaced to the
+      // captain as "الوقت التقديري" on the order screens.
+      if (waitingTime != null) {
+        requestData['waitingTime'] = waitingTime;
       }
 
       if (kDebugMode) {}
@@ -268,7 +284,10 @@ class OrderService {
     }
   }
 
-  Future<ApiResponse<Order>> acceptOrder(int orderId) async {
+  /// [waitingTime], in minutes, tells the captain how long until the order is
+  /// ready for pickup — the same value the counter-offer flow collects. Left
+  /// out, the order keeps whatever waiting time it already had.
+  Future<ApiResponse<Order>> acceptOrder(int orderId, {int? waitingTime}) async {
     try {
       final token = await _authService.getAccessToken();
       if (token == null) {
@@ -278,8 +297,14 @@ class OrderService {
         );
       }
 
+      final requestData = <String, dynamic>{};
+      if (waitingTime != null) {
+        requestData['waitingTime'] = waitingTime;
+      }
+
       final response = await _apiService.put<Map<String, dynamic>>(
         '${AppConstants.ordersEndpoint}/$orderId/vendor-accept',
+        data: requestData,
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 

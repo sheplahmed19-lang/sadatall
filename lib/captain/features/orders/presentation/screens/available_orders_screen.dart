@@ -35,7 +35,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         ref.read(availableOrdersProvider.notifier).loadOrders();
       }
     });
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (!mounted) return;
       final state = ref.read(availableOrdersProvider);
       if (state.isAccepting) return;
@@ -139,9 +139,12 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
     AvailableOrdersState ordersState,
   ) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        // Roomier than the original 10px: the text on this card was raised to
+        // 14-17px for outdoor legibility, and tight padding around larger type
+        // reads as cramped and hurts scanning in bright light.
+        padding: const EdgeInsets.all(14.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -153,7 +156,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                     Text(
                       'رقم الطلب: #${order.id}',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -183,7 +186,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                             Text(
                               'طلب خاص',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 color: AppColors.warning,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -198,7 +201,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                   Text(
                     AppUtils.formatPrice(order.deliveryPrice!),
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 17,
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
@@ -208,17 +211,13 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(
-                  Icons.store,
-                  size: 13,
-                  color: AppColors.onSurfaceVariant,
-                ),
+                Icon(Icons.store, size: 16, color: AppColors.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     order.vendorName,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
@@ -232,7 +231,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
               children: [
                 Icon(
                   Icons.location_on,
-                  size: 13,
+                  size: 16,
                   color: AppColors.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
@@ -240,7 +239,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                   child: Text(
                     '${order.neighborhood?.name ?? ''} - ${order.userAddress}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 14,
                       color: AppColors.onSurfaceVariant,
                     ),
                     maxLines: 2,
@@ -254,37 +253,56 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
               children: [
                 Icon(
                   Icons.access_time,
-                  size: 13,
+                  size: 16,
                   color: AppColors.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   AppUtils.timeAgo(order.createdAt),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 14,
                     color: AppColors.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
             const Divider(height: 16),
-            if (order.description.isNotEmpty)
-              _buildDetailRowWithClickablePhones('وصف الطلب:', order.description),
-            if (order.vendor != null && order.vendorId != '-1')
-              _buildPhoneRow('رقم المتجر:', order.vendor!.contactNumber),
+
+            // Grouped pickup -> delivery -> order, in the sequence the captain
+            // actually works through the job. Kept identical to
+            // CurrentOrderScreen so the same order reads the same way before
+            // and after it is accepted.
+            if (order.vendorId != '-1') ...[
+              _buildSectionHeader(Icons.storefront, 'الاستلام'),
+              if (order.vendor != null)
+                _buildPhoneRow('رقم المتجر:', order.vendor!.contactNumber),
+              if (order.routeLabel != null)
+                _buildDetailRow('المسار:', order.routeLabel!),
+              const SizedBox(height: 8),
+            ],
+
+            _buildSectionHeader(Icons.person_pin_circle, 'التسليم'),
+            // The backend already sends the customer on this endpoint
+            // (getAvailableOrders includes user.userName), but the card only
+            // ever showed order.phoneNumber, so the captain saw a bare number
+            // with no idea who it belonged to — while admin showed the name
+            // for the same order.
+            _buildDetailRow('اسم العميل:', order.displayCustomerName),
             _buildPhoneRow('رقم الهاتف:', order.phoneNumber),
+            const SizedBox(height: 8),
+
+            _buildSectionHeader(Icons.receipt_long, 'تفاصيل الطلب'),
+            if (order.description.isNotEmpty) _buildDescriptionBlock(order),
             if (order.price != null)
               _buildDetailRow('سعر الطلب:', AppUtils.formatPrice(order.price!)),
             if (order.waitingTime != null)
-              _buildDetailRow(
-                'الوقت التقديري:',
-                '${order.waitingTime} دقيقة',
-              ),
-            if (order.routeLabel != null)
-              _buildDetailRow('المسار:', order.routeLabel!),
+              _buildDetailRow('الوقت التقديري:', '${order.waitingTime} دقيقة'),
             if (order.additionalNotes != null &&
                 order.additionalNotes!.isNotEmpty)
-              _buildDetailRowWithClickablePhones('ملاحظات:', order.additionalNotes!),
+              _buildDetailRowWithClickablePhones(
+                'ملاحظات:',
+                order.additionalNotes!,
+              ),
             if (order.attachments != null && order.attachments!.isNotEmpty) ...[
               const SizedBox(height: 4),
               OrderAttachmentsWidget(attachments: order.attachments!),
@@ -335,6 +353,35 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
     );
   }
 
+  /// Small heading that separates the pickup / delivery / order blocks so the
+  /// captain can find one piece of information without reading the whole card.
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Divider(
+              height: 1,
+              color: AppColors.primary.withOpacity(0.2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPhoneRow(String label, String phoneNumber) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
@@ -342,11 +389,11 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 85,
+            width: 100,
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -356,7 +403,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
             child: ClickablePhoneField(
               phoneNumber: phoneNumber,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.underline,
@@ -376,25 +423,102 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 85,
+            width: 100,
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
             ),
           ),
+          // Heavier than its label: in glare the eye lands on the strongest
+          // mark first, and the value is what the captain is looking for.
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 11, color: AppColors.onSurface),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
               softWrap: true,
               overflow: TextOverflow.visible,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The order description, given its own full-width block instead of a
+  /// `label: value` row.
+  ///
+  /// This is the one field the captain has to actually read — it says what to
+  /// pick up — and as a cramped row it looked no more important than the
+  /// waiting time. Full width, larger and heavier type, and a tinted panel
+  /// with a leading accent bar give it a shape the eye finds immediately in
+  /// direct sunlight, without needing to parse any label first.
+  Widget _buildDescriptionBlock(OrderModel order) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        // A tint pale enough to keep text at ~15:1 is necessarily within about
+        // 1.1:1 of the white card, so the fill alone cannot carry the emphasis
+        // outdoors. The saturated bar and full-strength border do that work —
+        // colour at full chroma is what survives glare.
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primaryDark, width: 1.5),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 8,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryDark,
+                borderRadius: BorderRadius.horizontal(
+                  right: Radius.circular(6),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'وصف الطلب',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ClickablePhoneText(
+                      text: order.description,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        height: 1.4,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -406,11 +530,11 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 85,
+            width: 100,
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
@@ -419,7 +543,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
           Expanded(
             child: ClickablePhoneText(
               text: value,
-              style: TextStyle(fontSize: 11, color: AppColors.onSurface),
+              style: TextStyle(fontSize: 14, color: AppColors.onSurface),
             ),
           ),
         ],

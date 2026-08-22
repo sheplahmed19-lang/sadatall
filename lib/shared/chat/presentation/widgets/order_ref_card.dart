@@ -41,7 +41,12 @@ class OrderRefCard extends StatelessWidget {
                   ),
                   Text(
                     orderRef.statusSnapshot,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      // grey[700] is near-black: it disappeared against the
+                      // dark-mode surface behind this card.
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

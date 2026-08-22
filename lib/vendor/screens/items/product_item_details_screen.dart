@@ -128,10 +128,50 @@ class _ProductItemDetailsScreenState extends State<ProductItemDetailsScreen> {
     );
   }
 
-  Future<void> _pickImage() async {
+  /// Lets the vendor photograph the product directly instead of only picking
+  /// an existing file — most products are photographed on the spot.
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Text(
+              'اختر مصدر الصورة',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('الكاميرا'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('معرض الصور'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
@@ -400,7 +440,7 @@ class _ProductItemDetailsScreenState extends State<ProductItemDetailsScreen> {
 
   Widget _buildImageSection() {
     return GestureDetector(
-      onTap: widget.isEditable ? _pickImage : null,
+      onTap: widget.isEditable ? _showImageSourceSheet : null,
       child: Container(
         height: 300,
         decoration: BoxDecoration(
@@ -434,7 +474,7 @@ class _ProductItemDetailsScreenState extends State<ProductItemDetailsScreen> {
                 bottom: 16,
                 right: 16,
                 child: FloatingActionButton(
-                  onPressed: _pickImage,
+                  onPressed: _showImageSourceSheet,
                   backgroundColor: AppTheme.primaryColor,
                   child: const Icon(Icons.camera_alt, color: Colors.white),
                 ),

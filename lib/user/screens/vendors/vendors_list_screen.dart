@@ -4,6 +4,7 @@ import '../../models/vendor.dart';
 import '../../models/category.dart';
 import '../../services/user_vendor_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/auth_gate.dart';
 import '../../widgets/common/skeleton_widget.dart';
 import '../../widgets/common/smart_image.dart';
 import 'vendor_details_screen.dart';
@@ -284,7 +285,13 @@ class _VendorsListScreenState extends State<VendorsListScreen> {
     );
   }
 
-  void _navigateToCustomOrder() {
+  Future<void> _navigateToCustomOrder() async {
+    final loggedIn = await AuthGate.ensureLoggedIn(
+      context,
+      actionLabel: 'لإنشاء طلب خاص',
+    );
+    if (!loggedIn || !mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -312,12 +319,28 @@ class _VendorsListScreenState extends State<VendorsListScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: TextField(
                   controller: _searchController,
+                  // The fill was a hardcoded white while the text colour came
+                  // from the theme, so in dark mode you typed light text into
+                  // a white box. Pin both to the same surface/onSurface pair.
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'ابحث عن متجر...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
+                            icon: Icon(
+                              Icons.clear,
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                             onPressed: () {
                               _searchController.clear();
                             },
@@ -328,7 +351,7 @@ class _VendorsListScreenState extends State<VendorsListScreen> {
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.9),
+                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
                 ),
               ),
@@ -337,7 +360,9 @@ class _VendorsListScreenState extends State<VendorsListScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    // Same fix as the search field above: a hardcoded white
+                    // pill hid the theme-coloured dropdown label in dark mode.
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),

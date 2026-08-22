@@ -5,6 +5,7 @@ import '../../services/order_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_skeleton.dart';
 import '../../widgets/orders/order_card.dart';
+import '../../widgets/orders/create_order_actions.dart';
 import 'order_details_screen.dart';
 import 'counter_offer_screen.dart';
 import 'create_order_screen.dart';
@@ -56,7 +57,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
     super.initState();
     _tabController = TabController(length: _tabLabels.length, vsync: this);
     _initializeTabData();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (!authProvider.isVendorLocked) {
@@ -126,7 +127,8 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
           _hasMoreData[status] = response.data!.length >= 10;
           _errors[status] = null;
         });
-      } else if (response.error != null && response.error!.contains('يرجى الانتظار حتى يتم فتح الحساب')) {
+      } else if (response.error != null &&
+          response.error!.contains('يرجى الانتظار حتى يتم فتح الحساب')) {
         // Update auth provider to indicate vendor is locked
         authProvider.setVendorLockStatus(true);
         if (mounted) {
@@ -158,7 +160,9 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text('الحساب مغلق'),
-            content: const Text('حسابك مغلق مؤقتًا، يرجى إغلاق التطبيق وإعادة فتحه بعد فتح الحساب من قبل الإدارة'),
+            content: const Text(
+              'حسابك مغلق مؤقتًا، يرجى إغلاق التطبيق وإعادة فتحه بعد فتح الحساب من قبل الإدارة',
+            ),
           );
         },
       );
@@ -183,12 +187,10 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       _showVendorLockedDialog();
       return;
     }
-    
+
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => OrderDetailsScreen(order: order),
-      ),
+      MaterialPageRoute(builder: (context) => OrderDetailsScreen(order: order)),
     ).then((_) => _refreshAllTabs());
   }
 
@@ -199,27 +201,25 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       _showVendorLockedDialog();
       return;
     }
-    
+
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => CounterOfferScreen(order: order),
-      ),
+      MaterialPageRoute(builder: (context) => CounterOfferScreen(order: order)),
     ).then((_) => _refreshAllTabs());
   }
 
-  void _navigateToCreateOrder() {
+  void _navigateToCreateOrder({bool isShopOrder = false}) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     // Check if vendor is locked before navigating
     if (authProvider.isVendorLocked) {
       _showVendorLockedDialog();
       return;
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const CreateOrderScreen(),
+        builder: (context) => CreateOrderScreen(isShopOrder: isShopOrder),
       ),
     ).then((_) => _refreshAllTabs());
   }
@@ -231,7 +231,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       _showVendorLockedDialog();
       return;
     }
-    
+
     switch (action) {
       case 'counter_offer':
         _navigateToCounterOffer(order);
@@ -249,7 +249,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       _showVendorLockedDialog();
       return;
     }
-    
+
     final confirmed = await _showConfirmDialog(
       'رفض الطلب',
       'هل أنت متأكد من رفض هذا الطلب؟',
@@ -267,7 +267,8 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
           );
         }
         _refreshAllTabs();
-      } else if (response.error != null && response.error!.contains('يرجى الانتظار حتى يتم فتح الحساب')) {
+      } else if (response.error != null &&
+          response.error!.contains('يرجى الانتظار حتى يتم فتح الحساب')) {
         // Update auth provider to indicate vendor is locked
         authProvider.setVendorLockStatus(true);
         if (mounted) {
@@ -314,16 +315,16 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
     }
 
     return orders.where((order) {
-      return order.description
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
-          order.userAddress
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
+      return order.description.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          order.userAddress.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
           order.phoneNumber.contains(_searchQuery) ||
-          (order.user?.name
-                  .toLowerCase()
-                  .contains(_searchQuery.toLowerCase()) ??
+          (order.user?.name.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ) ??
               false);
     }).toList();
   }
@@ -335,10 +336,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       appBar: AppBar(
         title: const Text(
           'إدارة الطلبات',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         elevation: 0,
         actions: [
@@ -394,10 +392,18 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children:
-            _tabStatuses.map((status) => _buildOrdersList(status)).toList(),
+      body: Column(
+        children: [
+          CreateOrderActions(onCreate: _navigateToCreateOrder),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: _tabStatuses
+                  .map((status) => _buildOrdersList(status))
+                  .toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -460,19 +466,12 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             error,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -489,11 +488,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'لا توجد طلبات',
@@ -506,10 +501,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen>
           const SizedBox(height: 8),
           Text(
             'ستظهر الطلبات هنا عند توفرها',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),

@@ -97,7 +97,7 @@ class _UpdateLocationWidgetState extends State<UpdateLocationWidget> {
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

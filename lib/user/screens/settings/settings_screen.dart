@@ -268,7 +268,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
               secondary: Icon(
                 themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                color: Colors.grey[700],
+                // grey[700] is near-black — the dark-mode toggle's own icon
+                // was the hardest thing to see once dark mode was on.
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               title: const Text(
                 'الوضع الليلي',

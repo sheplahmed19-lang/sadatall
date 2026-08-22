@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
@@ -80,8 +82,17 @@ Future<String?> _checkForceUpdateForMode(String mode) async {
           onTimeout: () => throw Exception('timeout'),
         );
     if (!snap.exists) return null;
-    final required = snap.data()?['version_user'] as String?;
-    debugPrint('Force update check — required: $required');
+
+    // iOS and Android ship on their own review/rollout schedules, so the
+    // minimum version has to be tracked per platform — a single field would
+    // force-update one store's users to a build that is not live there yet.
+    // Falls back to version_user so an existing config (and any platform
+    // without its own field) keeps working unchanged.
+    final data = snap.data();
+    final platformField = Platform.isIOS ? 'version_ios' : 'version_user';
+    final required =
+        (data?[platformField] as String?) ?? (data?['version_user'] as String?);
+    debugPrint('Force update check — field: $platformField, required: $required');
     if (required == null || required.isEmpty) return null;
     final info = await PackageInfo.fromPlatform();
     final current = info.version;
@@ -268,8 +279,13 @@ class _RootAppState extends State<RootApp> {
                 actions: [
                   TextButton(
                     onPressed: () async {
-                      const storeUrl =
-                          'https://play.google.com/store/apps/details?id=sadat.delivery.com';
+                      // Send each platform to its own store. This used to be
+                      // the Play Store URL unconditionally, so an iOS user who
+                      // tapped "تحديث الآن" landed on a page they cannot
+                      // install from — with no way past the blocking dialog.
+                      final storeUrl = Platform.isIOS
+                          ? 'https://apps.apple.com/app/id6775554417'
+                          : 'https://play.google.com/store/apps/details?id=sadat.delivery.com';
                       final uri = Uri.parse(storeUrl);
                       if (await canLaunchUrl(uri)) {
                         await launchUrl(

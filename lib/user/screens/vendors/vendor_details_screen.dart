@@ -7,6 +7,7 @@ import '../../models/product_item.dart';
 import '../../services/user_vendor_service.dart';
 import '../../services/cart_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/auth_gate.dart';
 import '../../widgets/common/skeleton_widget.dart';
 import '../../widgets/common/smart_image.dart';
 import '../../widgets/common/clickable_phone_field.dart';
@@ -260,6 +261,12 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
   }
 
   void _navigateToCheckout() async {
+    final loggedIn = await AuthGate.ensureLoggedIn(
+      context,
+      actionLabel: 'لإتمام الطلب',
+    );
+    if (!loggedIn || !mounted) return;
+
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateOrderScreen(
@@ -276,7 +283,13 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
     }
   }
 
-  void _navigateToTextOrder() {
+  void _navigateToTextOrder() async {
+    final loggedIn = await AuthGate.ensureLoggedIn(
+      context,
+      actionLabel: 'لإرسال طلبك',
+    );
+    if (!loggedIn || !mounted) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => CreateOrderScreen(
@@ -686,6 +699,29 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
               ),
             ),
           ),
+
+          if (_cartService.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _confirmClearCart,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.errorColor,
+                  side: const BorderSide(color: AppTheme.errorColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.delete_outline, size: 20),
+                label: const Text(
+                  'إفراغ السلة',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
 
           if (isOpen && _cartService.isEmpty) ...[
             const SizedBox(height: 12),
@@ -1385,6 +1421,43 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  /// Removes every item from the cart after confirmation.
+  Future<void> _confirmClearCart() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('إفراغ السلة'),
+          content: const Text('هل تريد حذف كل العناصر من السلة؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.errorColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('حذف الكل'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    _cartService.clearCart();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم إفراغ السلة')),
+    );
   }
 
   Future<bool> _showVendorSwitchDialog() async {

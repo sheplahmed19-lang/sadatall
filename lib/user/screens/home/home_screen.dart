@@ -5,6 +5,7 @@ import '../../models/category.dart';
 import '../../services/user_vendor_service.dart';
 import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/auth_gate.dart';
 import '../../widgets/common/skeleton_widget.dart';
 import '../../widgets/common/smart_image.dart';
 import '../vendors/vendor_details_screen.dart';
@@ -208,7 +209,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _navigateToCustomOrder({bool isSendPackage = false}) {
+  Future<void> _navigateToCustomOrder({bool isSendPackage = false}) async {
+    final loggedIn = await AuthGate.ensureLoggedIn(
+      context,
+      actionLabel: isSendPackage ? 'لإرسال طرد' : 'لإنشاء طلب خاص',
+    );
+    if (!loggedIn || !mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(

@@ -91,10 +91,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  /// Lets the vendor photograph the image directly instead of only picking an
+  /// existing file.
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Text(
+              'اختر مصدر الصورة',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('الكاميرا'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('معرض الصور'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 85,
@@ -265,7 +305,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 )),
             const SizedBox(height: 16),
             GestureDetector(
-              onTap: _pickImage,
+              onTap: _showImageSourceSheet,
               child: Container(
                 width: 120,
                 height: 120,
@@ -306,7 +346,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
-              onPressed: _pickImage,
+              onPressed: _showImageSourceSheet,
               icon: const Icon(Icons.camera_alt, size: 20),
               label: const Text('تغيير الصورة'),
               style: ElevatedButton.styleFrom(

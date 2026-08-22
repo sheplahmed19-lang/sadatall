@@ -111,11 +111,7 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox,
-              size: 80,
-              color: AppColors.onSurfaceVariant,
-            ),
+            Icon(Icons.inbox, size: 80, color: AppColors.onSurfaceVariant),
             const SizedBox(height: 24),
             Text(
               'لا يوجد طلبات حالية',
@@ -210,23 +206,41 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildOrderInfo('المطعم/المتجر:', order.vendorName),
-            if (order.vendor != null)
-              _buildPhoneInfo(
-                'رقم المطعم/المتجر:',
-                order.vendor!.contactNumber,
-              ),
-            if (order.description.isNotEmpty)
-              _buildOrderInfoWithClickablePhones(
-                'وصف الطلب:',
-                order.description,
-              ),
+            // Grouped pickup -> delivery -> order, matching the section order
+            // used on AvailableOrdersScreen so an order reads the same way
+            // before and after the captain accepts it.
+            // Special orders (vendorId == '-1') have no store to collect from:
+            // vendor is null, routeLabel returns null, and vendorName degrades
+            // to the literal 'طلب خاص'. Rendering the section anyway leaves a
+            // "الاستلام" heading above a single row that names no pickup point,
+            // so skip the whole block — same as AvailableOrdersScreen.
+            if (order.vendorId != '-1') ...[
+              _buildSectionHeader(Icons.storefront, 'الاستلام'),
+              _buildOrderInfo('المطعم/المتجر:', order.vendorName),
+              if (order.vendor != null)
+                _buildPhoneInfo(
+                  'رقم المطعم/المتجر:',
+                  order.vendor!.contactNumber,
+                ),
+              if (order.routeLabel != null)
+                _buildOrderInfo('المسار:', order.routeLabel!),
+              const SizedBox(height: 8),
+            ],
+
+            _buildSectionHeader(Icons.person_pin_circle, 'التسليم'),
+            // Customer name, matching what admin shows for the same order.
+            // order.user is already parsed here (it feeds the chat button
+            // below) but was never displayed, leaving the captain with a
+            // phone number and no name to go with it.
+            _buildOrderInfo('اسم العميل:', order.displayCustomerName),
+            _buildPhoneInfo('رقم الهاتف:', order.phoneNumber),
             if (order.neighborhood != null)
               _buildOrderInfo('الحي:', order.neighborhood!.name),
-            if (order.routeLabel != null)
-              _buildOrderInfo('المسار:', order.routeLabel!),
             _buildOrderInfo('عنوان التسليم:', order.userAddress),
-            _buildPhoneInfo('رقم الهاتف:', order.phoneNumber),
+            const SizedBox(height: 8),
+
+            _buildSectionHeader(Icons.receipt_long, 'تفاصيل الطلب'),
+            if (order.description.isNotEmpty) _buildDescriptionBlock(order),
             if (order.price != null)
               _buildOrderInfo('سعر الطلب:', AppUtils.formatPrice(order.price!)),
             if (order.deliveryPrice != null)
@@ -289,15 +303,17 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
                 onPressed: isProcessing
                     ? null
                     : () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => CaptainOrderChatScreen(
-                            orderId: order.id,
-                            otherId: order.user!.id,
-                            otherName: order.user!.userName,
-                            isVendor: false,
-                            orderStatus: order.status.value,
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CaptainOrderChatScreen(
+                              orderId: order.id,
+                              otherId: order.user!.id,
+                              otherName: order.user!.userName,
+                              isVendor: false,
+                              orderStatus: order.status.value,
+                            ),
                           ),
-                        ));
+                        );
                       },
                 type: ButtonType.outlined,
                 icon: Icons.chat_bubble_outline,
@@ -311,15 +327,17 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
                 onPressed: isProcessing
                     ? null
                     : () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => CaptainOrderChatScreen(
-                            orderId: order.id,
-                            otherId: order.vendor!.id,
-                            otherName: order.vendor!.vendorName,
-                            isVendor: true,
-                            orderStatus: order.status.value,
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CaptainOrderChatScreen(
+                              orderId: order.id,
+                              otherId: order.vendor!.id,
+                              otherName: order.vendor!.vendorName,
+                              isVendor: true,
+                              orderStatus: order.status.value,
+                            ),
                           ),
-                        ));
+                        );
                       },
                 type: ButtonType.outlined,
                 icon: Icons.storefront_outlined,
@@ -372,6 +390,100 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
     );
   }
 
+  /// Small heading that separates the pickup / delivery / order blocks so the
+  /// captain can find one piece of information without reading the whole card.
+  /// Mirrors the same helper in AvailableOrdersScreen.
+  Widget _buildSectionHeader(IconData icon, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              height: 1,
+              color: AppColors.primary.withOpacity(0.2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The order description, given its own full-width block instead of a
+  /// `label: value` row. This is the field the captain actually has to read
+  /// while working, so it gets larger, heavier type and a saturated accent
+  /// bar that stays findable in direct sunlight. Mirrors the same block on
+  /// AvailableOrdersScreen.
+  Widget _buildDescriptionBlock(OrderModel order) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.primaryDark, width: 1.5),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 8,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryDark,
+                borderRadius: BorderRadius.horizontal(
+                  right: Radius.circular(6),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'وصف الطلب',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ClickablePhoneText(
+                      text: order.description,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        height: 1.4,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildOrderInfo(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -383,15 +495,23 @@ class _CurrentOrderScreenState extends ConsumerState<CurrentOrderScreen> {
             child: Text(
               label,
               style: TextStyle(
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurfaceVariant,
               ),
             ),
           ),
+          // The value is what the captain is actually looking for, so it is
+          // set heavier and darker than its label — in glare the eye lands on
+          // the strongest mark first.
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: AppColors.onSurface),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
             ),
           ),
         ],

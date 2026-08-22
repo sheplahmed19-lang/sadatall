@@ -60,4 +60,23 @@ class AppConstants {
   // Location
   static const double locationAccuracy = 100.0; // meters
   static const int locationTimeout = 30; // seconds
+
+  // Wasabi S3 Configuration
+  // Mirrors the user app's config: attachments are uploaded straight from the
+  // device to the bucket, so the app needs the keys. Note these ship inside
+  // the APK and grant full bucket access — the durable fix is a backend-issued
+  // pre-signed upload URL (wasabiService.generatePreSignedUrl already exists
+  // server-side), which would keep the credentials off the device entirely.
+  static const String wasabiAccessKey = 'RM7Z7JVNTNZ5CBI4BGKH';
+  static const String wasabiSecretKey =
+      'O0l5jOmAQHaAOOenncAdeWDHvvouv9GhJP5zD3fB';
+  static const String wasabiBucket = 'deliveryapp';
+  static const String wasabiEndpoint = 'https://s3.wasabisys.com';
+  static const String wasabiRegion = 'eu-south-1';
+
+  // Attachment Constraints
+  static const int maxImages = 5;
+  static const int maxVoiceNoteDuration = 300; // 5 minutes in seconds
+  static const int maxImageSizeMB = 5;
+  static const int maxVoiceNoteSizeMB = 10;
 }

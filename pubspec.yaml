@@ -1,7 +1,7 @@
 name: sadat_delivery_merged
 description: "Sadat Delivery - Unified app for Captain, Vendor, and User"
 publish_to: "none"
-version: 1.0.9+27
+version: 1.0.9+28
 environment:
   sdk: ^3.8.1
 
@@ -44,6 +44,8 @@ dependencies:
   # Audio
   audioplayers: ^6.1.0
   record: ^6.0.0
+  # Splash intro video for the user app (assets/intro.mp4)
+  video_player: ^2.9.2
 
   # File handling
   path_provider: ^2.1.2
@@ -116,6 +118,9 @@ flutter:
   generate: true
 
   assets:
+    # Root-level file: the folder entries below only cover their own
+    # directories, so intro.mp4 has to be listed explicitly.
+    - assets/intro.mp4
     - assets/shared/
     - assets/captain/
     - assets/vendor/images/

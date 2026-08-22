@@ -9,6 +9,8 @@ import 'counter_offer_screen.dart';
 import '../../utils/time_utils.dart';
 import '../../widgets/attachments/attachment_display_widget.dart';
 import '../../widgets/common/smart_image.dart';
+import '../../widgets/common/clickable_phone_field.dart';
+import '../../widgets/common/clickable_phone_text.dart';
 import '../chat/vendor_order_chat_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -28,6 +30,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   bool _isLoading = false;
   CaptainStats? _captainStats;
   String? _fallbackNeighborhoodName;
+
+  /// Kept in step with the counter-offer screen's options so both ways of
+  /// accepting an order offer the vendor the same choices.
+  static const List<int> _waitingTimeOptions = [5, 10, 15, 20, 25, 30, 60];
 
   @override
   void initState() {
@@ -205,19 +211,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _acceptOrder() async {
-    final confirmed = await _showConfirmDialog(
-      'قبول الطلب',
-      'هل أنت متأكد من قبول هذا الطلب بالسعر الحالي؟',
-    );
+    // Same waiting-time question the counter-offer flow asks, so an order
+    // accepted at its existing price still tells the captain when to come.
+    final result = await _showAcceptOrderDialog();
 
-    if (!confirmed) return;
+    if (result == null) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final response = await _orderService.acceptOrder(_order.id);
+      final response = await _orderService.acceptOrder(
+        _order.id,
+        waitingTime: result.waitingTime,
+      );
 
       if (response.success && response.data != null) {
         setState(() {
@@ -312,6 +320,82 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     }
   }
 
+  /// Confirms accepting the order at its current price and collects the
+  /// waiting time. Returns null when the vendor cancels.
+  Future<_AcceptOrderResult?> _showAcceptOrderDialog() async {
+    // Carry over a waiting time the order already has, but only when it is one
+    // of the offered values — the dropdown asserts its value is in `items`.
+    final existing = _order.waitingTime;
+    int? selectedWaitingTime =
+        existing != null && _waitingTimeOptions.contains(existing)
+            ? existing
+            : null;
+
+    return showDialog<_AcceptOrderResult>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('قبول الطلب'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('هل أنت متأكد من قبول هذا الطلب بالسعر الحالي؟'),
+              const SizedBox(height: 20),
+              const Text(
+                'وقت الانتظار',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                initialValue: selectedWaitingTime,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  hintText: 'اختر الوقت التقديري لتجهيز الطلب',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  prefixIcon: Icon(Icons.timer_outlined),
+                ),
+                items: _waitingTimeOptions
+                    .map(
+                      (minutes) => DropdownMenuItem<int>(
+                        value: minutes,
+                        child: Text('$minutes دقيقة'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => selectedWaitingTime = value),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'يظهر للكابتن حتى يعرف موعد الاستلام.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(
+                context,
+                _AcceptOrderResult(waitingTime: selectedWaitingTime),
+              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('قبول'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<bool> _showConfirmDialog(String title, String message) async {
     return await showDialog<bool>(
           context: context,
@@ -337,7 +421,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'طلب #${_order.id}',
@@ -379,25 +463,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildStatusCard(),
-                  const SizedBox(height: 16),
                   _buildCustomerInfoCard(),
-                  const SizedBox(height: 16),
-                  if (_order.captain != null) ...[
-                    _buildCaptainInfoCard(),
-                    const SizedBox(height: 16),
-                  ],
+                  if (_order.captain != null) ...[_buildCaptainInfoCard()],
                   _buildOrderDetailsCard(),
                   if (_order.orderItems != null &&
                       _order.orderItems!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
                     _buildOrderItemsCard(),
                   ],
                   if (_order.attachments != null &&
                       _order.attachments!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
                     _buildAttachmentsCard(),
                   ],
-                  const SizedBox(height: 16),
                   _buildTimelineCard(),
                   const SizedBox(
                     height: 100,
@@ -411,131 +487,255 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildStatusCard() {
-    Color statusColor = _getStatusColor(_order.status);
+    final statusColor = _getStatusColor(_order.status);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasTotal =
+        _order.displayPrice != null &&
+        _order.deliveryPrice != null &&
+        _order.deliveryPrice != 0;
+    final total = (_order.displayPrice ?? 0) + (_order.deliveryPrice ?? 0);
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [
-              statusColor.withOpacity(0.1),
-              statusColor.withOpacity(0.05),
-            ],
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-          ),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Icon(_getStatusIcon(_order.status), size: 48, color: statusColor),
-            const SizedBox(height: 12),
-            Text(
-              OrderStatus.getStatusDisplayName(_order.status),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: statusColor,
+    return _panel(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          // Status banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: isDark ? 0.18 : 0.10),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
               ),
             ),
-            // Price and delivery price
-            if (_order.displayPrice != null ||
-                _order.deliveryPrice != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              children: [
+                Icon(
+                  _getStatusIcon(_order.status),
+                  size: 34,
+                  color: statusColor,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  OrderStatus.getStatusDisplayName(_order.status),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_order.displayPrice != null || _order.deliveryPrice != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
                 children: [
-                  Flexible(
-                    child: _buildPriceDetail(
-                      _order.price != null && _order.price != 0
-                          ? 'السعر:'
-                          : 'السعر المطلوب (تقديري):',
-                      _order.displayPrice,
-                      Colors.green,
-                    ),
+                  _buildPriceDetail(
+                    _order.price != null && _order.price != 0
+                        ? 'السعر'
+                        : 'السعر المطلوب (تقديري)',
+                    _order.displayPrice,
+                    Colors.green,
                   ),
-                  const SizedBox(width: 16),
-                  Flexible(
-                    child: _buildPriceDetail(
-                      'مصاريف التوصيل:',
-                      _order.deliveryPrice,
-                      Colors.orange,
-                    ),
+                  _buildPriceDetail(
+                    'مصاريف التوصيل',
+                    _order.deliveryPrice,
+                    Colors.orange,
                   ),
+                  const Divider(height: 18),
+                  Row(
+                    children: [
+                      const Text(
+                        'الإجمالي',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        hasTotal
+                            ? '${total.toStringAsFixed(2)} ج.م'
+                            : 'غير محدد',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: hasTotal
+                              ? (isDark
+                                    ? Colors.lightBlue[200]
+                                    : Colors.blue[700])
+                              : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_order.price == null || _order.price == 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'لم يتم تحديد سعر نهائي بعد من قبل المتجر',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // Total price
-              Text(
-                'الإجمالي: ${_order.displayPrice == null || _order.deliveryPrice == null || _order.deliveryPrice == 0 ? '--' : '${(_order.displayPrice! + _order.deliveryPrice!).toStringAsFixed(2)} ج.م'}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-              if (_order.price == null || _order.price == 0)
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Renders the description as a bulleted list when it spans several lines,
+  /// and as plain text when it is a single line. Every line still goes
+  /// through ClickablePhoneText so embedded phone numbers stay actionable.
+  Widget _buildDescriptionBody() {
+    const style = TextStyle(fontSize: 15, height: 1.45);
+    final lines = _order.description
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    if (lines.isEmpty) {
+      return Text(
+        'لا يوجد وصف',
+        style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+      );
+    }
+
+    if (lines.length == 1) {
+      return ClickablePhoneText(
+        text: lines.first,
+        style: const TextStyle(fontSize: 16, height: 1.5),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'لم يتم تحديد سعر نهائي بعد من قبل المتجر',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-            ],
-          ],
-        ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ClickablePhoneText(text: line, style: style),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Shared shell for every section on this screen: a flat bordered panel
+  /// rather than a drop-shadowed Card, so a long scroll reads as one surface
+  /// instead of a stack of floating boxes.
+  Widget _panel({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(16),
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+      ),
+      padding: padding,
+      child: child,
+    );
+  }
+
+  /// Section heading used at the top of each panel.
+  Widget _sectionTitle(IconData icon, String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCustomerInfoCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.person, color: Colors.blue[700], size: 24),
-                const SizedBox(width: 12),
-                const Text(
-                  'معلومات العميل',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.person, 'الاسم', _displayCustomerName()),
-            const SizedBox(height: 12),
-            _buildInfoRow(
-              Icons.phone,
-              'رقم الهاتف',
-              _order.phoneNumber,
-              isPhone: true,
-            ),
-            const SizedBox(height: 12),
-            _buildInfoRow(Icons.location_on, 'العنوان', _order.userAddress),
-            if (_neighborhoodName != null) ...[
-              const SizedBox(height: 12),
-              _buildInfoRow(Icons.location_city, 'المنطقة', _neighborhoodName!),
-            ],
-            if (_order.vendorId != -1 && _neighborhoodName != null) ...[
-              const SizedBox(height: 12),
-              _buildInfoRow(
-                Icons.alt_route,
-                'المسار',
-                'من ${_vendorLocationLabel()} إلى $_neighborhoodName',
-              ),
-            ],
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(Icons.person, 'معلومات العميل', Colors.blue),
+          _buildInfoRow(Icons.person, 'الاسم', _displayCustomerName()),
+          _buildInfoRow(
+            Icons.phone,
+            'رقم الهاتف',
+            _order.phoneNumber,
+            isPhone: true,
+            copyable: true,
+          ),
+          _buildInfoRow(
+            Icons.location_on,
+            'العنوان',
+            _order.userAddress,
+            copyable: true,
+          ),
+          if (_neighborhoodName != null) ...[
+            _buildInfoRow(Icons.location_city, 'المنطقة', _neighborhoodName!),
           ],
-        ),
+          if (_order.vendorId != -1 && _neighborhoodName != null) ...[
+            _buildInfoRow(
+              Icons.alt_route,
+              'المسار',
+              'من ${_vendorLocationLabel()} إلى $_neighborhoodName',
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -554,269 +754,262 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final captain = _order.captain!;
     final rating = _captainStats?.currentRating ?? captain.currentRating ?? 0.0;
     final ratingCount = _captainStats?.totalRatings ?? captain.ratingCount ?? 0;
+    final hasPhoto =
+        captain.photoUrl != null && captain.photoUrl!.trim().isNotEmpty;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.delivery_dining, color: Colors.green[700], size: 24),
-                const SizedBox(width: 12),
-                const Text(
-                  'معلومات الكابتن',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(Icons.delivery_dining, 'معلومات الكابتن', Colors.green),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (captain.photoUrl != null &&
-                    captain.photoUrl!.trim().isNotEmpty) ...[
-                  GestureDetector(
-                    onTap: () => _showFullImage(context, captain.photoUrl!),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: SmartImage(
+          // Identity block: avatar, name and rating together. The detail rows
+          // used to be squeezed into an Expanded beside the photo, which left
+          // their fixed-width labels fighting the values for space.
+          Row(
+            children: [
+              GestureDetector(
+                onTap: hasPhoto
+                    ? () => _showFullImage(context, captain.photoUrl!)
+                    : null,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.green.withValues(alpha: 0.12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: hasPhoto
+                      ? SmartImage(
                           imageSource: captain.photoUrl!,
                           fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Captain name
-                      _buildInfoRow(Icons.person, 'الاسم', captain.userName),
-                      const SizedBox(height: 12),
-
-                      // Captain phone with call action
-                      Row(
-                        children: [
-                          Icon(Icons.phone, color: Colors.grey[600], size: 20),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'رقم الهاتف: ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: _callCaptain,
-                              child: Text(
-                                captain.phoneNumber,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue[700],
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _callCaptain,
-                            icon: Icon(Icons.phone, color: Colors.green[700]),
-                            tooltip: 'اتصال بالكابتن',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Rating
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: Colors.amber, size: 20),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'التقييم: ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Text(
-                            '${rating.toStringAsFixed(1)} ⭐',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber,
-                            ),
-                          ),
-                          if (ratingCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              '($ratingCount تقييم)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            // Location button (always show with 0,0 coordinates for now)
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _openCaptainLocation,
-                icon: const Icon(Icons.location_on),
-                label: const Text('عرض الموقع على الخريطة'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red[700],
-                  side: BorderSide(color: Colors.red[300]!),
+                        )
+                      : Icon(Icons.person, size: 28, color: Colors.green[700]),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      captain.userName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 15),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating > 0
+                              ? rating.toStringAsFixed(1)
+                              : 'لا يوجد تقييم',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (ratingCount > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '($ratingCount)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Phone gets its own full-width row so the number has room to
+          // breathe, with call/copy grouped at the end.
+          Row(
+            children: [
+              Icon(
+                Icons.phone,
+                size: 18,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.grey[600],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ClickablePhoneField(phoneNumber: captain.phoneNumber),
+              ),
+              InkWell(
+                onTap: _callCaptain,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.call, color: Colors.green[700], size: 18),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openCaptainLocation,
+              icon: const Icon(Icons.location_on, size: 18),
+              label: const Text('عرض الموقع على الخريطة'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red[700],
+                side: BorderSide(color: Colors.red[300]!),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildOrderDetailsCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.receipt, color: Colors.blue[700], size: 24),
-                const SizedBox(width: 12),
-                const Text(
-                  'تفاصيل الطلب',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(Icons.receipt_long, 'تفاصيل الطلب', Colors.orange),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color.fromARGB(26, 191, 185, 185)
+                  : const Color.fromARGB(255, 0, 0, 0),
+              borderRadius: BorderRadius.circular(8),
             ),
+            // Descriptions are usually a hand-written list, one item per
+            // line; as a single block they read as a wall of text. Each line
+            // becomes its own bulleted row, still via ClickablePhoneText so
+            // phone numbers stay tappable / long-press copyable.
+            child: _buildDescriptionBody(),
+          ),
+          if (_order.waitingTime != null) ...[
             const SizedBox(height: 16),
+            _buildInfoRow(
+              Icons.access_time,
+              'وقت الانتظار',
+              '${_order.waitingTime} دقيقة',
+            ),
+          ],
+          if (_order.additionalNotes != null &&
+              _order.additionalNotes!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            // Notes sit in a tinted panel with the label inline, rather than
+            // a second bold sub-heading plus its own bordered box — that
+            // nesting made the section read as two competing cards. The tint
+            // is theme-aware so it does not stay cream-coloured in dark mode.
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Colors.orange.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.14
+                      : 0.08,
+                ),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[200]!),
               ),
-              child: Text(
-                _order.description,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-              ),
-            ),
-            if (_order.waitingTime != null) ...[
-              const SizedBox(height: 16),
-              _buildInfoRow(
-                Icons.access_time,
-                'وقت الانتظار',
-                '${_order.waitingTime} دقيقة',
-              ),
-            ],
-            if (_order.additionalNotes != null &&
-                _order.additionalNotes!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.note, color: Colors.orange[700], size: 20),
+                  Icon(
+                    Icons.sticky_note_2_outlined,
+                    color: Colors.orange[700],
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'ملاحظات إضافية',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ملاحظات إضافية',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _order.additionalNotes!,
+                          style: const TextStyle(fontSize: 14, height: 1.45),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[200]!),
-                ),
-                child: Text(
-                  _order.additionalNotes!,
-                  style: const TextStyle(fontSize: 14, height: 1.5),
-                ),
-              ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildOrderItemsCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.shopping_cart, color: Colors.blue[700], size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  'عناصر الطلب (${_order.orderItems!.length})',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.shopping_cart, color: Colors.blue[700], size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'عناصر الطلب (${_order.orderItems!.length})',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ..._order.orderItems!.map((item) => _buildOrderItemTile(item)),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'الإجمالي',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ..._order.orderItems!.map((item) => _buildOrderItemTile(item)),
+          const Divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'الإجمالي',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${_order.orderItems!.fold(0.0, (sum, item) => sum + (item.price * item.quantity)).toStringAsFixed(2)} ج.م',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
                 ),
-                Text(
-                  '${_order.orderItems!.fold(0.0, (sum, item) => sum + (item.price * item.quantity)).toStringAsFixed(2)} ج.م',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -826,7 +1019,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white10
+            : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -889,58 +1084,37 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildAttachmentsCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: AttachmentDisplayWidget(attachments: _order.attachments!),
-      ),
+    return _panel(
+      child: AttachmentDisplayWidget(attachments: _order.attachments!),
     );
   }
 
   Widget _buildTimelineCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timeline, color: Colors.blue[700], size: 24),
-                const SizedBox(width: 12),
-                const Text(
-                  'التوقيت',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(Icons.timeline, 'التوقيت', Colors.teal),
+          _buildTimelineItem(
+            Icons.add_circle,
+            'تم إنشاء الطلب',
+            TimeUtils.formatCairoTZDateTime(
+              _order.createdAt,
+              format: 'dd/MM/yyyy - hh:mm a',
             ),
-            const SizedBox(height: 16),
+            true,
+          ),
+          if (_order.updatedAt != null && _order.updatedAt != _order.createdAt)
             _buildTimelineItem(
-              Icons.add_circle,
-              'تم إنشاء الطلب',
+              Icons.update,
+              'آخر تحديث',
               TimeUtils.formatCairoTZDateTime(
-                _order.createdAt,
+                _order.updatedAt!,
                 format: 'dd/MM/yyyy - hh:mm a',
               ),
-              true,
+              false,
             ),
-            if (_order.updatedAt != null &&
-                _order.updatedAt != _order.createdAt)
-              _buildTimelineItem(
-                Icons.update,
-                'آخر تحديث',
-                TimeUtils.formatCairoTZDateTime(
-                  _order.updatedAt!,
-                  format: 'dd/MM/yyyy - hh:mm a',
-                ),
-                false,
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1000,47 +1174,71 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     String label,
     String value, {
     bool isPhone = false,
+    bool copyable = false,
   }) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.grey[600], size: 20),
-        const SizedBox(width: 12),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey,
+    final muted = Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey[400]!
+        : Colors.grey[600]!;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, color: muted, size: 18),
           ),
-        ),
-        // add copy icon
-        IconButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: value));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم نسخ النص إلى الحافظة'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-          icon: Icon(Icons.copy, color: Colors.grey[600], size: 20),
-          tooltip: 'نسخ',
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTap: isPhone ? _callCustomer : null,
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 96,
             child: Text(
-              value,
+              label,
               style: TextStyle(
-                fontSize: 14,
-                color: isPhone ? Colors.blue[700] : Colors.black87,
-                decoration: isPhone ? TextDecoration.underline : null,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: muted,
               ),
             ),
           ),
-        ),
-      ],
+          Expanded(
+            child: GestureDetector(
+              onTap: isPhone ? _callCustomer : null,
+              child: Text(
+                value,
+                // No explicit colour: inherits the theme so it stays legible
+                // in dark mode. Only phone numbers are tinted, to signal that
+                // they are tappable.
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isPhone ? Colors.blue[400] : null,
+                  decoration: isPhone ? TextDecoration.underline : null,
+                ),
+              ),
+            ),
+          ),
+          // The copy affordance used to sit on every row, which crowded the
+          // card; it is now opt-in for the values worth copying.
+          if (copyable)
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: value));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم نسخ النص إلى الحافظة'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.copy, color: muted, size: 16),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1173,11 +1371,40 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildPriceDetail(String label, double? price, Color color) {
-    // Check if price is null or 0
-    bool isValid = price != null && price != 0;
-    return Text(
-      '$label ${isValid ? '${price!.toStringAsFixed(2)} ج.م' : '--'}',
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color),
+    final isValid = price != null && price != 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[400]
+                  : Colors.grey[600],
+            ),
+          ),
+          const Spacer(),
+          Text(
+            isValid ? '${price.toStringAsFixed(2)} ج.م' : 'غير محدد',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: isValid ? color : Colors.grey,
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+/// What the vendor chose in the accept-order dialog. A returned instance means
+/// "accept"; null (dialog dismissed) means the vendor backed out.
+class _AcceptOrderResult {
+  const _AcceptOrderResult({this.waitingTime});
+
+  /// Minutes until the order is ready for pickup, or null if not specified.
+  final int? waitingTime;
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../dashboard/main_dashboard_screen.dart';
 import '../orders/orders_management_screen.dart';
-import '../orders/create_order_screen.dart';
 import '../items/items_management_screen.dart';
 import '../menu/menu_management_screen.dart';
 import '../settings/settings_screen.dart';
@@ -149,21 +148,10 @@ class _MainAppScreenState extends State<MainAppScreen> {
           ),
         ),
       ),
-      floatingActionButton: _currentIndex == 1 // Orders tab
-          ? FloatingActionButton(
-              onPressed: () {
-                // Navigate to create order screen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateOrderScreen(),
-                  ),
-                );
-              },
-              backgroundColor: const Color(0xFFFFC107),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      // The orders tab now offers both order types as cards above the list
+      // (CreateOrderActions), so a generic "+" here would be a third, more
+      // ambiguous route to the same place.
+      floatingActionButton: null,
     );
   }
 

@@ -38,10 +38,20 @@ class ChatRepository {
   final ChatMessageCache _cache;
   final _uuid = const Uuid();
   final _outboxChanged = StreamController<String>.broadcast();
+
+  /// Messages the server confirmed in a send response, keyed by chatId.
+  /// Feeds the same path as an incoming socket event so a sent message is
+  /// never momentarily absent from the list: the outbox placeholder is only
+  /// dropped once its confirmed replacement has already been merged in.
+  /// Without this the message vanished between the POST returning and the
+  /// `new_message` echo arriving — indefinitely, if the socket was down.
+  final _sentMessages = StreamController<({String chatId, Map<String, dynamic> raw})>.broadcast();
   StreamSubscription<void>? _reconnectSub;
 
   void dispose() {
     _reconnectSub?.cancel();
+    _outboxChanged.close();
+    _sentMessages.close();
   }
 
   // ── thread lookup / lazy creation ────────────────────────────────────────
@@ -80,6 +90,7 @@ class ChatRepository {
     late StreamController<List<ChatMessage>> controller;
     StreamSubscription? sub;
     StreamSubscription<String>? outboxSub;
+    StreamSubscription<({String chatId, Map<String, dynamic> raw})>? sentSub;
     StreamSubscription<void>? reconnectSub;
     final byId = <String, ChatMessage>{};
     final outboxKeys = <String>{};
@@ -109,11 +120,15 @@ class ChatRepository {
     }
 
     Future<void> refreshOutbox() async {
+      // Read first, then swap. Clearing byId before the await left a window
+      // where any concurrent emit() (a socket event, a confirmed send)
+      // rendered the list without the still-pending placeholders, making a
+      // just-typed message blink out.
+      final pending = await _outbox.forChat(chatId);
       for (final key in outboxKeys) {
         byId.remove(key);
       }
       outboxKeys.clear();
-      final pending = await _outbox.forChat(chatId);
       for (final m in pending) {
         final chatMessage = m.toChatMessage();
         byId[chatMessage.id] = chatMessage;
@@ -150,6 +165,13 @@ class ChatRepository {
           emit();
           persistCache();
         });
+        sentSub = _sentMessages.stream.where((e) => e.chatId == chatId).listen((e) {
+          final raw = e.raw;
+          byId[raw['id'] as String] = ChatMessage.fromJson(raw);
+          rawById[raw['id'] as String] = raw;
+          emit();
+          persistCache();
+        });
         outboxSub = _outboxChanged.stream.where((id) => id == chatId).listen((_) => refreshOutbox());
         // A reconnect gets a brand-new socket connection server-side, which
         // drops this chat's room membership — a message sent while briefly
@@ -171,6 +193,7 @@ class ChatRepository {
       onCancel: () {
         sub?.cancel();
         outboxSub?.cancel();
+        sentSub?.cancel();
         reconnectSub?.cancel();
         socket.leaveChat(chatId);
       },
@@ -337,7 +360,14 @@ class ChatRepository {
 
   Future<void> _attemptSend(OutboxMessage message) async {
     try {
-      await api.post('/chats/${message.chatId}/messages', body: message.toRequestBody());
+      final saved = await api.post('/chats/${message.chatId}/messages', body: message.toRequestBody());
+      // Publish the confirmed message first, so the list already contains it
+      // by the time the optimistic placeholder is removed below. Ordering
+      // matters: reversing these two leaves a gap where the message is in
+      // neither the outbox nor byId, and it visibly disappears.
+      if (saved['id'] != null && !_sentMessages.isClosed) {
+        _sentMessages.add((chatId: message.chatId, raw: saved));
+      }
       await _outbox.remove(message.clientMessageId);
     } catch (_) {
       // No internet / backend unreachable / timed out — keep it queued and

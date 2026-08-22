@@ -146,17 +146,7 @@ class DeliveredOrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  String _displayCustomerName() {
-    final notes = order.additionalNotes;
-    if (notes != null) {
-      final match = RegExp(r'الاسم:\s*(.+)').firstMatch(notes);
-      final senderName = match?.group(1)?.trim();
-      if (senderName != null && senderName.isNotEmpty) {
-        return senderName;
-      }
-    }
-    return order.user?.userName ?? 'غير محدد';
-  }
+  String _displayCustomerName() => order.displayCustomerName;
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
