@@ -10,8 +10,13 @@ class StorageService {
 
   static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: const IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock, // correct enum
+    // first_unlock_this_device (not first_unlock) so the item is never marked
+    // iCloud-syncable. The syncable variant needs a Keychain Sharing
+    // entitlement that iOS enforces strictly; without it every read fails with
+    // OSStatus -34018 and the captain app never leaves its loading spinner.
+    // Vendor and user already use this value — keep all three aligned.
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
   );
 
@@ -24,11 +29,16 @@ class StorageService {
     }
   }
 
+  /// Returns null rather than throwing when the platform keystore is
+  /// unreadable. A failed read means "no credential available", which is the
+  /// same as being logged out — throwing here instead propagated out of the
+  /// startup auth check and left the app on a blank frame with no way to
+  /// reach the login screen.
   Future<String?> getSecureString(String key) async {
     try {
       return await _secureStorage.read(key: key);
     } catch (e) {
-      throw CacheException('Failed to read secure string: $e');
+      return null;
     }
   }
 

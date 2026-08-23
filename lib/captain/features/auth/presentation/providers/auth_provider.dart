@@ -94,14 +94,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
           _apiClient.setRefreshToken(refreshToken);
         }
 
-        // Start location tracking for authenticated users
-        await _locationService.startTracking();
+        // Start location tracking for authenticated users.
+        // Bounded: this awaits an iOS permission dialog, and if the user never
+        // answers it (or the platform channel stalls) an unbounded await here
+        // leaves isLoading true forever — a permanent loading spinner with no
+        // screen behind it. Tracking is not required to render the app.
+        try {
+          await _locationService
+              .startTracking()
+              .timeout(const Duration(seconds: 8));
+        } catch (e) {
+          ('Location tracking did not start during auth check: $e');
+        }
 
         // Update FCM token on server for authenticated users
         try {
-          final fcmToken = await _notificationService.getToken();
+          final fcmToken = await _notificationService
+              .getToken()
+              .timeout(const Duration(seconds: 8));
           if (fcmToken != null) {
-            await _notificationService.updateFCMTokenOnServer(fcmToken);
+            await _notificationService
+                .updateFCMTokenOnServer(fcmToken)
+                .timeout(const Duration(seconds: 8));
           }
         } catch (e) {
           // FCM token update failure should not prevent login
@@ -125,6 +139,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: AppUtils.getLocalizedErrorMessage(e),
       );
+    } finally {
+      // The auth wrapper renders nothing but a spinner while isLoading is
+      // true, so it must be cleared on every path out of this method — an
+      // early return or an unforeseen throw would otherwise strand the app on
+      // a blank loading frame with no route behind it.
+      if (state.isLoading) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 

@@ -92,7 +92,9 @@ Future<String?> _checkForceUpdateForMode(String mode) async {
     final platformField = Platform.isIOS ? 'version_ios' : 'version_user';
     final required =
         (data?[platformField] as String?) ?? (data?['version_user'] as String?);
-    debugPrint('Force update check — field: $platformField, required: $required');
+    debugPrint(
+      'Force update check — field: $platformField, required: $required',
+    );
     if (required == null || required.isEmpty) return null;
     final info = await PackageInfo.fromPlatform();
     final current = info.version;
@@ -429,6 +431,13 @@ class _VendorApp extends StatelessWidget {
           theme: vendor_theme.AppTheme.lightTheme,
           darkTheme: vendor_theme.AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
+          locale: const Locale('ar', 'EG'),
+          supportedLocales: const [Locale('ar', 'EG'), Locale('en', 'US')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           initialRoute: '/',
           routes: {
             '/': (context) => const vendor_splash.SplashScreen(),

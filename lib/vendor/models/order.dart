@@ -253,8 +253,7 @@ class Order {
 
   // Text summary of the delivery route: from the vendor's neighborhood/address
   // to the order's destination neighborhood. Only meaningful when the order
-  // has a real vendor (not a special order, vendorId == -1) and actually goes
-  // somewhere — see [_isSameLocationDelivery].
+  // has a real vendor (not a special order, vendorId == -1).
   String? get routeLabel {
     if (vendorId == -1 || vendor == null) return null;
     if (_isSameLocationDelivery) return null;
