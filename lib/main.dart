@@ -131,7 +131,15 @@ Future<void> initializeAppMode(String mode) async {
       await FirebaseConfigService.getBaseUrlWithFallback();
     } catch (_) {}
     try {
-      await captain_notif.NotificationService().initialize();
+      // Bounded like the vendor path below. initialize() awaits the iOS
+      // notification permission dialog, which never completes if the dialog
+      // is not answered or APNs registration stalls. This runs before
+      // runApp(), so an unbounded await here means the app renders nothing
+      // at all — the "stuck loading forever" on captain. Notifications are
+      // not required to draw the first screen.
+      await captain_notif.NotificationService().initialize().timeout(
+        const Duration(seconds: 10),
+      );
     } catch (_) {}
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
   } else if (mode == AppMode.vendor.name) {
