@@ -182,14 +182,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _apiClient.setAuthToken(token);
       _apiClient.setRefreshToken(refreshToken);
 
-      // Start location tracking
-      await _locationService.startTracking();
+      // Start location tracking. Bounded for the same reason as in
+      // _checkAuthStatus: this awaits the iOS location permission prompt, and
+      // an unbounded await leaves the login button spinning with no screen
+      // behind it. Tracking is not required to enter the app.
+      try {
+        await _locationService
+            .startTracking()
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        ('Location tracking did not start during login: $e');
+      }
 
       // Update FCM token on server after login
       try {
-        final fcmToken = await _notificationService.getToken();
+        final fcmToken = await _notificationService
+            .getToken()
+            .timeout(const Duration(seconds: 8));
         if (fcmToken != null) {
-          await _notificationService.updateFCMTokenOnServer(fcmToken);
+          await _notificationService
+              .updateFCMTokenOnServer(fcmToken)
+              .timeout(const Duration(seconds: 8));
         }
       } catch (e) {
         // FCM token update failure should not prevent login
