@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAFUWaTseTx6wpGeKEwuoqMROWWrlnOKjE',
-    appId: '1:793738063888:android:8a5aa3166ca2c6b2135a95',
+    appId: '1:793738063888:android:e9116bac92110424135a95',
     messagingSenderId: '793738063888',
     projectId: 'buss-3c283',
     storageBucket: 'buss-3c283.firebasestorage.app',
@@ -59,10 +59,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBeTL0o74hOS2_B2Wr6KoCHX8JBdWa-WMg',
-    appId: '1:793738063888:ios:4cc412e6c20f2a2b135a95',
+    appId: '1:793738063888:ios:70ce46b1cfb5c8bc135a95',
     messagingSenderId: '793738063888',
     projectId: 'buss-3c283',
     storageBucket: 'buss-3c283.firebasestorage.app',
-    iosBundleId: 'sadat.delivery.solvy.com',
+    iosBundleId: 'com.sadat.sadatDeliveryMerged',
   );
 }

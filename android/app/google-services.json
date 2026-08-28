@@ -83,6 +83,25 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:793738063888:android:72a88e13b75cfd1b135a95",
+        "android_client_info": {
+          "package_name": "com.example.sadat_delivery_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFUWaTseTx6wpGeKEwuoqMROWWrlnOKjE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:793738063888:android:c5b0f217d6df3abd135a95",
         "android_client_info": {
           "package_name": "com.example.sadat_user_app"
@@ -143,25 +162,6 @@
         "mobilesdk_app_id": "1:793738063888:android:460241880709d10e135a95",
         "android_client_info": {
           "package_name": "com.example.truck_fleet_driver"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAFUWaTseTx6wpGeKEwuoqMROWWrlnOKjE"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:793738063888:android:4ab1bac630a2dbe8135a95",
-        "android_client_info": {
-          "package_name": "com.softAdmin.studentDetails"
         }
       },
       "oauth_client": [],
