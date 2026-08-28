@@ -1,7 +1,7 @@
 name: sadat_delivery_merged
 description: "Sadat Delivery - Unified app for Captain, Vendor, and User"
 publish_to: "none"
-version: 1.0.9+31
+version: 1.0.9+32
 environment:
   sdk: ^3.8.1
 
