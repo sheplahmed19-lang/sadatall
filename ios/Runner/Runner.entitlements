@@ -6,5 +6,12 @@
 	<array>
 		<string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string>
 	</array>
+	<!-- Required for APNs registration. Without this key iOS refuses to
+	     register for remote notifications, Firebase never receives an APNs
+	     token, and FCM therefore never issues a token to send pushes to.
+	     Xcode automatically rewrites this to "production" for Release/
+	     TestFlight/App Store builds. -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

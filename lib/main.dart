@@ -125,43 +125,65 @@ Future<String?> _checkForceUpdateForMode(String mode) async {
   return null;
 }
 
+/// Per-mode startup. Only work that must precede the first frame is awaited
+/// here; the network-bound rest is handed to [_initializeModeInBackground].
+///
+/// Awaiting the slow half used to cost up to ~20s of white screen on a cold
+/// start (base-URL fetch + APNs registration, each bounded at 10s and run in
+/// sequence). Timeouts stopped it hanging forever but turned an occasional
+/// freeze into a routine long wait — worst on iOS, where none of it is warm.
+/// None of it is required to render: every mode has a cached/fallback base
+/// URL, and notifications are not needed to draw a screen.
 Future<void> initializeAppMode(String mode) async {
   if (mode == AppMode.captain.name) {
-    try {
-      await FirebaseConfigService.getBaseUrlWithFallback();
-    } catch (_) {}
-    try {
-      // Bounded like the vendor path below. initialize() awaits the iOS
-      // notification permission dialog, which never completes if the dialog
-      // is not answered or APNs registration stalls. This runs before
-      // runApp(), so an unbounded await here means the app renders nothing
-      // at all — the "stuck loading forever" on captain. Notifications are
-      // not required to draw the first screen.
-      await captain_notif.NotificationService().initialize().timeout(
-        const Duration(seconds: 10),
-      );
-    } catch (_) {}
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
   } else if (mode == AppMode.vendor.name) {
     TimeUtils.initialize();
-    final apiService = ApiService();
-    apiService.initialize();
-    try {
-      await BaseUrlService.initializeBaseUrl().timeout(
-        const Duration(seconds: 10),
-      );
-      if (BaseUrlService.isInitialized) {
-        apiService.updateBaseUrl(BaseUrlService.baseUrl);
-      }
-    } catch (_) {}
-    try {
-      await vendor_notif.NotificationService().initialize().timeout(
-        const Duration(seconds: 10),
-      );
-    } catch (_) {}
+    // Synchronous, uses the cached/default base URL — the fetched one is
+    // applied in the background pass below via updateBaseUrl().
+    ApiService().initialize();
   } else if (mode == AppMode.user.name) {
     await AppInitializationService.initializeApp();
   }
+
+  _initializeModeInBackground(mode);
+}
+
+/// The slow half of startup, deliberately not awaited by [main].
+void _initializeModeInBackground(String mode) {
+  Future<void> run() async {
+    if (mode == AppMode.captain.name) {
+      try {
+        await FirebaseConfigService.getBaseUrlWithFallback();
+      } catch (_) {}
+      try {
+        // initialize() awaits the iOS notification permission dialog, which
+        // never completes if the dialog goes unanswered or APNs registration
+        // stalls. Bounded so a stalled registration cannot leak indefinitely.
+        await captain_notif.NotificationService().initialize().timeout(
+          const Duration(seconds: 10),
+        );
+      } catch (_) {}
+    } else if (mode == AppMode.vendor.name) {
+      try {
+        await BaseUrlService.initializeBaseUrl().timeout(
+          const Duration(seconds: 10),
+        );
+        if (BaseUrlService.isInitialized) {
+          ApiService().updateBaseUrl(BaseUrlService.baseUrl);
+        }
+      } catch (_) {}
+      try {
+        await vendor_notif.NotificationService().initialize().timeout(
+          const Duration(seconds: 10),
+        );
+      } catch (_) {}
+    }
+    // User mode schedules its own background pass inside
+    // AppInitializationService.initializeApp().
+  }
+
+  run().ignore();
 }
 
 Future<void> main() async {

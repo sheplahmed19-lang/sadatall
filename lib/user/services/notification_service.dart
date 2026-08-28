@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -271,7 +272,9 @@ class NotificationService {
     }
 
     // Get the token
-    _fcmToken = await _firebaseMessaging.getToken();
+    _fcmToken = await _waitForApnsToken()
+        ? await _firebaseMessaging.getToken()
+        : null;
     if (_fcmToken != null) {
       ('FCM Token: $_fcmToken');
       // Send token to backend
@@ -410,8 +413,25 @@ class NotificationService {
     return null;
   }
 
+  /// On iOS, getToken() throws "apns-token-not-set" if APNs registration has
+  /// not finished yet — FCM derives its token from the APNs one. Registration
+  /// with Apple can lag a moment after permission is granted, so poll briefly
+  /// rather than giving up on the first miss. No-op off iOS, where
+  /// getAPNSToken() simply returns null.
+  Future<bool> _waitForApnsToken() async {
+    if (!Platform.isIOS) return true;
+    var apnsToken = await _firebaseMessaging.getAPNSToken();
+    for (var i = 0; i < 10 && apnsToken == null; i++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      apnsToken = await _firebaseMessaging.getAPNSToken();
+    }
+    return apnsToken != null;
+  }
+
   Future<String?> getToken() async {
-    return _fcmToken ?? await _firebaseMessaging.getToken();
+    if (_fcmToken != null) return _fcmToken;
+    if (!await _waitForApnsToken()) return null;
+    return await _firebaseMessaging.getToken();
   }
 
   void subscribeToTopic(String topic) {
